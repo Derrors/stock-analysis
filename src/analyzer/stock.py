@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional
 
 import pandas as pd
@@ -115,7 +116,12 @@ class StockAnalyzer:
 
         try:
             result_dict = await self.llm.analyze_json(system_prompt, user_prompt)
-            result = self._parse_result(stock_info, result_dict)
+            result = self._parse_result(stock_info, result_dict, news)
+            result.stock_info = stock_info
+            result.realtime = realtime
+            result.tech = tech
+            result.chip = chip
+            result.news = news
             logger.info("[个股分析] LLM 分析完成: %s → %s (评分%d, %s)",
                         code, result.action, result.score, result.trend)
             return result
@@ -126,6 +132,11 @@ class StockAnalyzer:
                 stock_name=stock_info.name,
                 core_conclusion=f"分析失败: {e}",
                 raw_report="",
+                stock_info=stock_info,
+                realtime=realtime,
+                tech=tech,
+                chip=chip,
+                news=news,
             )
 
     async def _get_chip(self, code: str) -> Optional[ChipDistribution]:
@@ -205,7 +216,17 @@ class StockAnalyzer:
             news_text=news_text,
         )
 
-    def _parse_result(self, stock_info: StockInfo, data: dict) -> StockAnalysisResult:
+    def _extract_name_from_news(self, news: list[NewsItem], code: str) -> str:
+        """从新闻标题中提取股票名称"""
+        for item in news:
+            m = re.search(r'([^\s（(]+?)（?' + re.escape(code) + r'）?', item.title)
+            if m:
+                name = m.group(1).strip()
+                if name and len(name) >= 2 and not name.isdigit():
+                    return name
+        return ""
+
+    def _parse_result(self, stock_info: StockInfo, data: dict, news: list[NewsItem] = None) -> StockAnalysisResult:
         """解析 LLM 返回的结果"""
         checklist = []
         for item in data.get("checklist", []):
@@ -220,9 +241,15 @@ class StockAnalyzer:
         stop_loss = data.get("stop_loss_price")
         target = data.get("target_price")
 
+        stock_name = stock_info.name
+        if (not stock_name or stock_name == stock_info.code) and news:
+            extracted = self._extract_name_from_news(news, stock_info.code)
+            if extracted:
+                stock_name = extracted
+
         return StockAnalysisResult(
             stock_code=stock_info.code,
-            stock_name=stock_info.name,
+            stock_name=stock_name,
             core_conclusion=str(data.get("core_conclusion", "")),
             score=int(data.get("score", 0) or 0),
             action=str(data.get("action", "")),

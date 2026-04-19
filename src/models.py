@@ -89,6 +89,11 @@ class StockAnalysisResult:
     strategy: str = ""
     raw_report: str = ""
     disclaimer: str = "仅供参考，不构成投资建议。股市有风险，投资需谨慎。"
+    stock_info: Optional[StockInfo] = None
+    realtime: Optional[RealtimeQuote] = None
+    tech: Optional[TechnicalIndicators] = None
+    chip: Optional[ChipDistribution] = None
+    news: list[NewsItem] = field(default_factory=list)
 
 
 @dataclass

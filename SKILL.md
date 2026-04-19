@@ -49,30 +49,36 @@ metadata:
 
 ## 使用方式
 
-### 个股分析
+### 生成分析报告（推荐）
+
+```bash
+# 个股分析报告 → 保存到 reports/{代码}_{日期}.md
+python3 {baseDir}/scripts/report.py stock 600519
+
+# 市场分析报告 → 保存到 reports/market_{日期}.md
+python3 {baseDir}/scripts/report.py market
+
+# 同时输出 JSON
+python3 {baseDir}/scripts/report.py stock 600519 --json
+
+# 自定义输出目录
+python3 {baseDir}/scripts/report.py stock 600519 -o ./my-reports
+```
+
+### JSON 输出
 
 ```bash
 python3 {baseDir}/scripts/analyze_stock.py 600519
+python3 {baseDir}/scripts/analyze_market.py
 ```
 
-或通过 handler 调用：
+### Handler 调用
 
 ```python
 from src.index import handler
 result = await handler({"mode": "stock", "code": "600519"})
-```
-
-### 市场分析
-
-```bash
-python3 {baseDir}/scripts/analyze_market.py
-```
-
-或通过 handler 调用：
-
-```python
-from src.index import handler
 result = await handler({"mode": "market"})
+result = await handler({"mode": "stock", "code": "600519", "save": True})
 ```
 
 ## 输入格式

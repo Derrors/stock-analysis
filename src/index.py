@@ -14,6 +14,7 @@ from src.data.manager import DataProviderManager
 from src.data.pytdx_provider import PytdxProvider
 from src.llm.client import LLMClient
 from src.models import MarketAnalysisResult, StockAnalysisResult
+from src.report import save_report
 from src.search.base import NewsSearchEngine
 from src.search.bocha import BochaSearch
 from src.search.brave import BraveSearch
@@ -61,8 +62,16 @@ def _build_llm_client(config: SkillConfig) -> LLMClient:
     )
 
 
-async def analyze_stock(code: str, config: Optional[SkillConfig] = None) -> StockAnalysisResult:
-    """个股分析 - 供智能体调用的主入口"""
+async def analyze_stock(code: str, config: Optional[SkillConfig] = None,
+                        save: bool = False, output_dir: Optional[str] = None) -> StockAnalysisResult:
+    """个股分析 - 供智能体调用的主入口
+
+    Args:
+        code: A股股票代码
+        config: 配置对象，为 None 时从环境变量加载
+        save: 是否保存 Markdown 报告到 reports/ 目录
+        output_dir: 自定义报告输出目录
+    """
     if config is None:
         config = SkillConfig()
 
@@ -99,11 +108,20 @@ async def analyze_stock(code: str, config: Optional[SkillConfig] = None) -> Stoc
     elapsed = time.monotonic() - start
     logger.info("========== 个股分析完成 [%s] 耗时%.2fs: %s ==========",
                 code, elapsed, result.core_conclusion[:50] if result.core_conclusion else "无结论")
+    if save:
+        save_report(result, output_dir)
     return result
 
 
-async def analyze_market(config: Optional[SkillConfig] = None) -> MarketAnalysisResult:
-    """市场分析 - 供智能体调用的主入口"""
+async def analyze_market(config: Optional[SkillConfig] = None,
+                         save: bool = False, output_dir: Optional[str] = None) -> MarketAnalysisResult:
+    """市场分析 - 供智能体调用的主入口
+
+    Args:
+        config: 配置对象，为 None 时从环境变量加载
+        save: 是否保存 Markdown 报告到 reports/ 目录
+        output_dir: 自定义报告输出目录
+    """
     if config is None:
         config = SkillConfig()
 
@@ -133,6 +151,8 @@ async def analyze_market(config: Optional[SkillConfig] = None) -> MarketAnalysis
     elapsed = time.monotonic() - start
     logger.info("========== 市场分析完成 耗时%.2fs: %s ==========",
                 elapsed, result.core_conclusion[:50] if result.core_conclusion else "无结论")
+    if save:
+        save_report(result, output_dir)
     return result
 
 
@@ -148,16 +168,18 @@ async def handler(input: dict, context: Optional[dict] = None) -> dict:
     """
     context = context or {}
     mode = input.get("mode", "stock")
+    save = input.get("save", False)
+    output_dir = input.get("output_dir")
 
-    config_overrides = {k: v for k, v in input.items() if k not in ("mode", "code")}
+    config_overrides = {k: v for k, v in input.items() if k not in ("mode", "code", "save", "output_dir")}
     config = SkillConfig(**config_overrides) if config_overrides else None
 
     if mode == "market":
-        result = await analyze_market(config)
+        result = await analyze_market(config, save=save, output_dir=output_dir)
     else:
         code = input.get("code", "")
         if not code:
             return {"error": "缺少股票代码，请在 input.code 中提供"}
-        result = await analyze_stock(code, config)
+        result = await analyze_stock(code, config, save=save, output_dir=output_dir)
 
     return _dataclass_to_dict(result)

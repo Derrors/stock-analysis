@@ -70,39 +70,49 @@ BOCHA_KEY=
 
 ### 3. 调用分析
 
-#### 方式一：CLI 脚本
+#### 方式一：生成 Markdown 报告（推荐）
 
 ```bash
-# 个股分析
+# 个股分析报告 → 保存到 reports/{代码}_{日期}.md
+python3 scripts/report.py stock 600519
+
+# 市场分析报告 → 保存到 reports/market_{日期}.md
+python3 scripts/report.py market
+
+# 同时输出 JSON 到控制台
+python3 scripts/report.py stock 600519 --json
+
+# 自定义输出目录
+python3 scripts/report.py stock 600519 -o ./my-reports
+```
+
+#### 方式二：JSON 输出
+
+```bash
+# 个股分析（输出 JSON）
 python3 scripts/analyze_stock.py 600519
 
-# 市场分析
+# 市场分析（输出 JSON）
 python3 scripts/analyze_market.py
 ```
 
-#### 方式二：Python API
+#### 方式三：Python API
 
 ```python
 import asyncio
 from src.index import analyze_stock, analyze_market
 
-# 个股分析 — 输入 A 股代码
-result = asyncio.run(analyze_stock("600519"))
+# 个股分析 + 保存报告
+result = asyncio.run(analyze_stock("600519", save=True))
 print(result.core_conclusion)   # 一句话核心结论
 print(result.action)            # 买入/观望/卖出
-print(result.buy_price)         # 买入价
-print(result.stop_loss_price)   # 止损价
-print(result.target_price)      # 目标价
-print(result.raw_report)        # 完整分析报告
 
-# 市场分析
-result = asyncio.run(analyze_market())
-print(result.core_conclusion)   # 市场核心结论
+# 市场分析 + 保存报告
+result = asyncio.run(analyze_market(save=True))
 print(result.sentiment)         # 偏多/中性/偏空
-print(result.raw_report)        # 完整复盘报告
 ```
 
-#### 方式三：OpenClaw Handler
+#### 方式四：OpenClaw Handler
 
 ```python
 from src.index import handler
@@ -110,8 +120,8 @@ from src.index import handler
 # 个股分析
 result = await handler({"mode": "stock", "code": "600519"})
 
-# 市场分析
-result = await handler({"mode": "market"})
+# 市场分析 + 保存报告
+result = await handler({"mode": "market", "save": True})
 ```
 
 也可以传入自定义配置：
@@ -158,8 +168,9 @@ stock-analysis/
 │   └── llm/
 │       └── client.py           # LLM 客户端（OpenAI 兼容接口）
 ├── scripts/                    # CLI 入口脚本
-│   ├── analyze_stock.py        # 个股分析 CLI
-│   └── analyze_market.py       # 市场分析 CLI
+│   ├── report.py               # ★ 报告生成器（推荐入口）
+│   ├── analyze_stock.py        # 个股分析 JSON 输出
+│   └── analyze_market.py       # 市场分析 JSON 输出
 ├── references/                 # 按需加载的详细文档
 │   └── data-sources.md         # 数据源架构详细说明
 ├── test/
