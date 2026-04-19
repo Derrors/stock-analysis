@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional, Union
+from typing import Union
 from dataclasses import dataclass, field
 from dotenv import load_dotenv
 

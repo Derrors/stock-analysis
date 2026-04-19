@@ -57,12 +57,6 @@ def _score_bar(score: int, width: int = 20) -> str:
     return f"{color * filled}{'⬜' * empty}"
 
 
-def _ratio_bar(ratio: float, width: int = 20) -> str:
-    filled = max(0, min(width, round(ratio * width)))
-    empty = width - filled
-    return f"█{filled * '█'}{empty * '░'}█"
-
-
 def _action_emoji(action: str) -> str:
     return {"买入": "🟢", "观望": "🟡", "卖出": "🔴"}.get(action, "⚪")
 
