@@ -4,8 +4,8 @@ import logging
 
 import httpx
 
-from models import NewsItem
-from search.base import NewsSearchEngine
+from src.models import NewsItem
+from src.search.base import NewsSearchEngine
 
 logger = logging.getLogger(__name__)
 

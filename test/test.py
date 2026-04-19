@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from skill import analyze_stock, analyze_market
+from src.index import analyze_stock, analyze_market
 
 
 def print_separator(title: str):

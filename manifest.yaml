@@ -1,0 +1,113 @@
+name: stock-analysis
+version: 1.0.0
+author: stock-analysis
+license: MIT
+runtime: python
+entry: src/index.py
+min_openclaw_version: "2026.1.0"
+description: A股市场分析与个股深度分析技能，支持技术面、筹码分布、舆情情报等多维度分析
+
+categories:
+  - finance
+  - analysis
+
+config:
+  - key: llm_base_url
+    type: string
+    required: true
+    default: "https://api.deepseek.com/v1"
+    description: OpenAI兼容API地址
+  - key: llm_api_key
+    type: string
+    required: true
+    description: LLM API Key
+  - key: llm_model
+    type: string
+    required: true
+    default: "deepseek-chat"
+    description: 模型名称
+  - key: serpapi_key
+    type: string
+    required: false
+    description: SerpAPI搜索Key
+  - key: tavily_key
+    type: string
+    required: false
+    description: Tavily搜索Key
+  - key: brave_key
+    type: string
+    required: false
+    description: Brave搜索Key
+  - key: bocha_key
+    type: string
+    required: false
+    description: 博查搜索Key
+  - key: bias_threshold
+    type: number
+    required: false
+    default: 5.0
+    description: 乖离率阈值(%)
+  - key: news_max_age_days
+    type: integer
+    required: false
+    default: 3
+    description: 新闻最大时效(天)
+  - key: enable_chip
+    type: boolean
+    required: false
+    default: true
+    description: 是否启用筹码分布
+  - key: log_level
+    type: string
+    required: false
+    default: "INFO"
+    description: 日志级别 DEBUG/INFO/WARNING/ERROR
+
+input:
+  type: object
+  properties:
+    mode:
+      type: string
+      enum: [stock, market]
+      description: 分析模式
+    code:
+      type: string
+      description: A股股票代码(mode=stock时必填)
+  required: [mode]
+
+output:
+  type: object
+  properties:
+    stock_code:
+      type: string
+      description: 股票代码
+    stock_name:
+      type: string
+      description: 股票名称
+    core_conclusion:
+      type: string
+      description: 一句话核心结论
+    score:
+      type: integer
+      description: 评分0-100
+    action:
+      type: string
+      description: 操作方向(买入/观望/卖出)
+    trend:
+      type: string
+      description: 趋势判断(看多/震荡/看空)
+    buy_price:
+      type: number
+      description: 建议买入价
+    stop_loss_price:
+      type: number
+      description: 止损价
+    target_price:
+      type: number
+      description: 目标价
+    sentiment:
+      type: string
+      description: 市场情绪(偏多/中性/偏空)
+    raw_report:
+      type: string
+      description: LLM完整分析报告(Markdown)

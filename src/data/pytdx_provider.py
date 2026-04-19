@@ -9,8 +9,8 @@ from typing import Generator, Optional
 
 import pandas as pd
 
-from data.provider import MarketDataProvider
-from models import (
+from src.data.provider import MarketDataProvider
+from src.models import (
     ChipDistribution,
     IndexData,
     MarketOverview,

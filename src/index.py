@@ -1,34 +1,46 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 import time
 from typing import Optional
 
-from analyzer.market import MarketAnalyzer
-from analyzer.stock import StockAnalyzer
-from config import SkillConfig, setup_logging
-from data.akshare_provider import AkShareProvider
-from data.efinance_provider import EfinanceProvider
-from data.manager import DataProviderManager
-from data.pytdx_provider import PytdxProvider
-from llm.client import LLMClient
-from models import MarketAnalysisResult, StockAnalysisResult
-from search.base import NewsSearchEngine
-from search.bocha import BochaSearch
-from search.brave import BraveSearch
-from search.serpapi import SerpAPISearch
-from search.tavily import TavilySearch
+from src.analyzer.market import MarketAnalyzer
+from src.analyzer.stock import StockAnalyzer
+from src.config import SkillConfig, setup_logging
+from src.data.akshare_provider import AkShareProvider
+from src.data.efinance_provider import EfinanceProvider
+from src.data.manager import DataProviderManager
+from src.data.pytdx_provider import PytdxProvider
+from src.llm.client import LLMClient
+from src.models import MarketAnalysisResult, StockAnalysisResult
+from src.search.base import NewsSearchEngine
+from src.search.bocha import BochaSearch
+from src.search.brave import BraveSearch
+from src.search.serpapi import SerpAPISearch
+from src.search.tavily import TavilySearch
 
 logger = logging.getLogger(__name__)
 
 
+def _dataclass_to_dict(obj) -> dict | list | str | int | float | bool | None:
+    """递归将 dataclass 转为 JSON 可序列化字典"""
+    if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
+        return {k: _dataclass_to_dict(v) for k, v in dataclasses.asdict(obj).items()}
+    if isinstance(obj, list):
+        return [_dataclass_to_dict(item) for item in obj]
+    if isinstance(obj, dict):
+        return {k: _dataclass_to_dict(v) for k, v in obj.items()}
+    if isinstance(obj, (str, int, float, bool)) or obj is None:
+        return obj
+    return str(obj)
+
+
 def _build_data_provider(config: SkillConfig) -> DataProviderManager:
-    """构建数据源（Efinance 最优先 → AkShare 备选 → Pytdx 兜底）"""
     return DataProviderManager([EfinanceProvider(), AkShareProvider(), PytdxProvider()])
 
 
 def _build_search_engines(config: SkillConfig) -> list[NewsSearchEngine]:
-    """构建搜索引擎列表，按配置顺序"""
     engines: list[NewsSearchEngine] = []
     if config.serpapi_key:
         engines.append(SerpAPISearch(config.serpapi_key))
@@ -42,7 +54,6 @@ def _build_search_engines(config: SkillConfig) -> list[NewsSearchEngine]:
 
 
 def _build_llm_client(config: SkillConfig) -> LLMClient:
-    """构建 LLM 客户端"""
     return LLMClient(
         base_url=config.llm_base_url,
         api_key=config.llm_api_key,
@@ -51,15 +62,7 @@ def _build_llm_client(config: SkillConfig) -> LLMClient:
 
 
 async def analyze_stock(code: str, config: Optional[SkillConfig] = None) -> StockAnalysisResult:
-    """个股分析 - 供智能体调用的主入口
-
-    Args:
-        code: A股股票代码，如 "600519"、"000001"
-        config: 配置对象，为 None 时从环境变量加载
-
-    Returns:
-        StockAnalysisResult 个股分析结果
-    """
+    """个股分析 - 供智能体调用的主入口"""
     if config is None:
         config = SkillConfig()
 
@@ -100,14 +103,7 @@ async def analyze_stock(code: str, config: Optional[SkillConfig] = None) -> Stoc
 
 
 async def analyze_market(config: Optional[SkillConfig] = None) -> MarketAnalysisResult:
-    """市场分析 - 供智能体调用的主入口
-
-    Args:
-        config: 配置对象，为 None 时从环境变量加载
-
-    Returns:
-        MarketAnalysisResult 市场分析结果
-    """
+    """市场分析 - 供智能体调用的主入口"""
     if config is None:
         config = SkillConfig()
 
@@ -138,3 +134,30 @@ async def analyze_market(config: Optional[SkillConfig] = None) -> MarketAnalysis
     logger.info("========== 市场分析完成 耗时%.2fs: %s ==========",
                 elapsed, result.core_conclusion[:50] if result.core_conclusion else "无结论")
     return result
+
+
+async def handler(input: dict, context: Optional[dict] = None) -> dict:
+    """OpenClaw Skill 标准入口
+
+    Args:
+        input: {"mode": "stock"|"market", "code": "600519", ...config overrides}
+        context: OpenClaw 运行时上下文
+
+    Returns:
+        JSON 可序列化的分析结果字典
+    """
+    context = context or {}
+    mode = input.get("mode", "stock")
+
+    config_overrides = {k: v for k, v in input.items() if k not in ("mode", "code")}
+    config = SkillConfig(**config_overrides) if config_overrides else None
+
+    if mode == "market":
+        result = await analyze_market(config)
+    else:
+        code = input.get("code", "")
+        if not code:
+            return {"error": "缺少股票代码，请在 input.code 中提供"}
+        result = await analyze_stock(code, config)
+
+    return _dataclass_to_dict(result)

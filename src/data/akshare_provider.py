@@ -8,15 +8,15 @@ from typing import Optional
 
 import pandas as pd
 
-from data.provider import MarketDataProvider
-from data.utils import (
+from src.data.provider import MarketDataProvider
+from src.data.utils import (
     RealtimeCache,
     calc_market_stats,
     calculate_chip_from_daily,
     enforce_rate_limit,
     safe_float,
 )
-from models import (
+from src.models import (
     ChipDistribution,
     IndexData,
     MarketOverview,

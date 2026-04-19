@@ -8,9 +8,9 @@ from typing import Optional
 
 import pandas as pd
 
-from data.provider import MarketDataProvider
-from data.utils import RealtimeCache, calc_market_stats, enforce_rate_limit, safe_float
-from models import (
+from src.data.provider import MarketDataProvider
+from src.data.utils import RealtimeCache, calc_market_stats, enforce_rate_limit, safe_float
+from src.models import (
     ChipDistribution,
     IndexData,
     MarketOverview,
@@ -258,7 +258,7 @@ class EfinanceProvider(MarketDataProvider):
             result = calc_market_stats(df, self)
             logger.debug(
                 "Efinance 市场统计: 涨%d 跌%d 平%d 涨停%d 跌停%d",
-                result.advance, result.decline, result.flat, result.limit_up, result.limit_down,
+                result.up_count, result.down_count, result.flat_count, result.limit_up_count, result.limit_down_count,
             )
             logger.debug("Efinance get_market_statistics 完成 耗时%.2fs", time.monotonic() - start)
             return result

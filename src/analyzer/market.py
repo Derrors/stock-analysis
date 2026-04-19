@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import logging
 
-from analyzer.prompts import MARKET_ANALYSIS_SYSTEM_PROMPT, MARKET_ANALYSIS_USER_PROMPT
-from config import SkillConfig
-from data.provider import MarketDataProvider
-from llm.client import LLMClient
-from models import MarketAnalysisResult, MarketOverview
+from src.analyzer.prompts import MARKET_ANALYSIS_SYSTEM_PROMPT, MARKET_ANALYSIS_USER_PROMPT
+from src.config import SkillConfig
+from src.data.provider import MarketDataProvider
+from src.llm.client import LLMClient
+from src.models import MarketAnalysisResult, MarketOverview
 
 logger = logging.getLogger(__name__)
 

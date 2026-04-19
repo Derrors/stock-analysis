@@ -70,9 +70,21 @@ BOCHA_KEY=
 
 ### 3. 调用分析
 
+#### 方式一：CLI 脚本
+
+```bash
+# 个股分析
+python3 scripts/analyze_stock.py 600519
+
+# 市场分析
+python3 scripts/analyze_market.py
+```
+
+#### 方式二：Python API
+
 ```python
 import asyncio
-from skill import analyze_stock, analyze_market
+from src.index import analyze_stock, analyze_market
 
 # 个股分析 — 输入 A 股代码
 result = asyncio.run(analyze_stock("600519"))
@@ -90,10 +102,22 @@ print(result.sentiment)         # 偏多/中性/偏空
 print(result.raw_report)        # 完整复盘报告
 ```
 
+#### 方式三：OpenClaw Handler
+
+```python
+from src.index import handler
+
+# 个股分析
+result = await handler({"mode": "stock", "code": "600519"})
+
+# 市场分析
+result = await handler({"mode": "market"})
+```
+
 也可以传入自定义配置：
 
 ```python
-from config import SkillConfig
+from src.config import SkillConfig
 
 config = SkillConfig(
     llm_base_url="https://api.openai.com/v1",
@@ -108,50 +132,67 @@ result = asyncio.run(analyze_stock("000001", config=config))
 
 ```
 stock-analysis/
-├── skill.py                    # Skill 入口，暴露 analyze_stock / analyze_market
-├── config.py                   # 配置管理（环境变量 + .env）
-├── models.py                   # 数据模型定义
-├── analyzer/
-│   ├── stock.py                # 个股分析引擎
-│   ├── market.py               # 市场分析引擎
-│   └── prompts.py              # Prompt 模板
-├── data/
-│   ├── provider.py             # 数据源抽象基类（MarketDataProvider）
-│   ├── efinance_provider.py    # Efinance 数据源（优先级 0）
-│   ├── akshare_provider.py     # AkShare 数据源（优先级 1）
-│   ├── pytdx_provider.py       # Pytdx 数据源（优先级 2）
-│   └── manager.py              # 数据源管理器（多源自动容灾）
-├── search/
-│   ├── base.py                 # 搜索引擎抽象基类
-│   ├── serpapi.py              # SerpAPI 搜索
-│   ├── tavily.py               # Tavily 搜索
-│   ├── brave.py                # Brave 搜索
-│   └── bocha.py                # Bocha 搜索
-├── llm/
-│   └── client.py               # LLM 客户端（OpenAI 兼容接口）
+├── SKILL.md                    # ★ Skill 定义（OpenClaw 标准入口）
+├── manifest.yaml               # 机器可读元数据 + 输入输出 Schema
+├── src/                        # 源代码
+│   ├── index.py                # ★ Skill 入口（handler + analyze_stock/market）
+│   ├── config.py               # 配置管理（环境变量 + .env）
+│   ├── models.py               # 数据模型定义
+│   ├── analyzer/
+│   │   ├── stock.py            # 个股分析引擎
+│   │   ├── market.py           # 市场分析引擎
+│   │   └── prompts.py          # Prompt 模板
+│   ├── data/
+│   │   ├── provider.py         # 数据源抽象基类（MarketDataProvider）
+│   │   ├── efinance_provider.py # Efinance 数据源（优先级 0）
+│   │   ├── akshare_provider.py  # AkShare 数据源（优先级 1）
+│   │   ├── pytdx_provider.py    # Pytdx 数据源（优先级 2）
+│   │   ├── manager.py          # 数据源管理器（多源自动容灾）
+│   │   └── utils.py            # 公共工具（缓存/统计/限流）
+│   ├── search/
+│   │   ├── base.py             # 搜索引擎抽象基类
+│   │   ├── serpapi.py          # SerpAPI 搜索
+│   │   ├── tavily.py           # Tavily 搜索
+│   │   ├── brave.py            # Brave 搜索
+│   │   └── bocha.py            # Bocha 搜索
+│   └── llm/
+│       └── client.py           # LLM 客户端（OpenAI 兼容接口）
+├── scripts/                    # CLI 入口脚本
+│   ├── analyze_stock.py        # 个股分析 CLI
+│   └── analyze_market.py       # 市场分析 CLI
+├── references/                 # 按需加载的详细文档
+│   └── data-sources.md         # 数据源架构详细说明
 ├── test/
 │   ├── test.py                 # 集成测试
 │   └── test_market_mock.py     # Mock 测试
 ├── requirements.txt
-└── .env.example
+├── config.example.yaml         # YAML 格式示例配置
+├── .env.example
+├── .gitignore
+└── README.md
 ```
 
 ## 架构设计
 
 ```
 ┌──────────────────────────────────────────┐
-│            skill.py（接口层）               │
-│     analyze_stock()  analyze_market()     │
+│         SKILL.md / manifest.yaml          │
+│         OpenClaw Skill 定义层             │
 └──────────────────┬───────────────────────┘
                    │
 ┌──────────────────▼───────────────────────┐
-│           analyzer/（分析层）               │
+│         src/index.py（接口层）              │
+│  handler()  analyze_stock()  analyze_market() │
+└──────────────────┬───────────────────────┘
+                   │
+┌──────────────────▼───────────────────────┐
+│        src/analyzer/（分析层）              │
 │     组装数据 + 构建 Prompt + 调用 LLM       │
 └──┬───────────────┬───────────┬───────────┘
    │               │           │
    ▼               ▼           ▼
 ┌────────────┐ ┌──────┐ ┌──────────┐
-│   data/    │ │search│ │   llm/   │
+│  src/data/ │ │search│ │   llm/   │
 │   数据层    │ │搜索层 │ │  模型层   │
 │ 三级自动容灾 │ │4 引擎 │ │DeepSeek  │
 │            │ │(可扩展)│ │(OpenAI兼容)│

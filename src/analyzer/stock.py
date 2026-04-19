@@ -5,11 +5,11 @@ from typing import Optional
 
 import pandas as pd
 
-from analyzer.prompts import STOCK_ANALYSIS_SYSTEM_PROMPT, STOCK_ANALYSIS_USER_PROMPT
-from config import SkillConfig
-from data.provider import MarketDataProvider
-from llm.client import LLMClient
-from models import (
+from src.analyzer.prompts import STOCK_ANALYSIS_SYSTEM_PROMPT, STOCK_ANALYSIS_USER_PROMPT
+from src.config import SkillConfig
+from src.data.provider import MarketDataProvider
+from src.llm.client import LLMClient
+from src.models import (
     CheckItem,
     ChipDistribution,
     NewsItem,
@@ -18,7 +18,7 @@ from models import (
     StockInfo,
     TechnicalIndicators,
 )
-from search.base import NewsSearchEngine
+from src.search.base import NewsSearchEngine
 
 logger = logging.getLogger(__name__)
 

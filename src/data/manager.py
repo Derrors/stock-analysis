@@ -6,9 +6,9 @@ from typing import Optional
 
 import pandas as pd
 
-from data.provider import MarketDataProvider
-from data.utils import calculate_chip_from_daily
-from models import (
+from src.data.provider import MarketDataProvider
+from src.data.utils import calculate_chip_from_daily
+from src.models import (
     ChipDistribution,
     IndexData,
     MarketOverview,

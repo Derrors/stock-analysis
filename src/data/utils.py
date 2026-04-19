@@ -7,8 +7,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from data.provider import MarketDataProvider
-from models import ChipDistribution, MarketStatistics
+from src.data.provider import MarketDataProvider
+from src.models import ChipDistribution, MarketStatistics
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

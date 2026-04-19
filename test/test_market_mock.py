@@ -15,12 +15,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from analyzer.market import MarketAnalyzer
-from analyzer.prompts import MARKET_ANALYSIS_SYSTEM_PROMPT, MARKET_ANALYSIS_USER_PROMPT
-from config import SkillConfig
-from data.provider import MarketDataProvider
-from llm.client import LLMClient
-from models import (
+from src.analyzer.market import MarketAnalyzer
+from src.analyzer.prompts import MARKET_ANALYSIS_SYSTEM_PROMPT, MARKET_ANALYSIS_USER_PROMPT
+from src.config import SkillConfig
+from src.data.provider import MarketDataProvider
+from src.llm.client import LLMClient
+from src.models import (
     IndexData,
     MarketAnalysisResult,
     MarketOverview,
