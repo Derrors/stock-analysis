@@ -11,13 +11,16 @@ import requests
 
 from src.data.provider import MarketDataProvider
 from src.models import (
+    CapitalFlow,
     ChipDistribution,
+    FinancialData,
     IndexData,
     MarketOverview,
     MarketStatistics,
     RealtimeQuote,
     SectorData,
     StockInfo,
+    Valuation,
 )
 
 logger = logging.getLogger(__name__)
@@ -444,3 +447,199 @@ class MiaoxiangProvider(MarketDataProvider):
             top_sectors=top_sectors,
             bottom_sectors=bottom_sectors,
         )
+
+    async def get_capital_flow(self, code: str) -> Optional[CapitalFlow]:
+        start = time.monotonic()
+        logger.debug("Miaoxiang 获取主力资金流向: code=%s", code)
+        try:
+            dto_list = await asyncio.to_thread(
+                self._query_and_parse,
+                f"{code} 主力资金流向 超大单净额 大单净额 中单净额 小单净额 DDX DDY DDZ"
+            )
+            super_large_net = 0.0
+            large_net = 0.0
+            medium_net = 0.0
+            small_net = 0.0
+            super_large_in = 0.0
+            super_large_out = 0.0
+            large_in = 0.0
+            large_out = 0.0
+            ddx = 0.0
+            ddy = 0.0
+            ddz = 0.0
+
+            for dto in dto_list:
+                rows = _parse_table_to_rows(dto)
+                if not rows:
+                    continue
+                row = rows[-1]
+
+                if super_large_net == 0.0:
+                    super_large_net = _mx_parse_float(_find_in_row(row, ["超大单净额", "超大单净流入"]))
+                if large_net == 0.0:
+                    large_net = _mx_parse_float(_find_in_row(row, ["大单净额", "大单净流入"]))
+                if medium_net == 0.0:
+                    medium_net = _mx_parse_float(_find_in_row(row, ["中单净额", "中单净流入"]))
+                if small_net == 0.0:
+                    small_net = _mx_parse_float(_find_in_row(row, ["小单净额", "小单净流入"]))
+                if super_large_in == 0.0:
+                    super_large_in = _mx_parse_float(_find_in_row(row, ["超大单流入"]))
+                if super_large_out == 0.0:
+                    super_large_out = _mx_parse_float(_find_in_row(row, ["超大单流出"]))
+                if large_in == 0.0:
+                    large_in = _mx_parse_float(_find_in_row(row, ["大单流入"]))
+                if large_out == 0.0:
+                    large_out = _mx_parse_float(_find_in_row(row, ["大单流出"]))
+                if ddx == 0.0:
+                    ddx = _mx_parse_float(_find_in_row(row, ["DDX"]))
+                if ddy == 0.0:
+                    ddy = _mx_parse_float(_find_in_row(row, ["DDY"]))
+                if ddz == 0.0:
+                    ddz = _mx_parse_float(_find_in_row(row, ["DDZ"]))
+
+            has_data = any(v != 0.0 for v in [
+                super_large_net, large_net, medium_net, small_net,
+                ddx, ddy, ddz,
+            ])
+            if not has_data:
+                logger.debug("Miaoxiang 主力资金: 无有效数据")
+                return None
+
+            result = CapitalFlow(
+                super_large_net=super_large_net,
+                large_net=large_net,
+                medium_net=medium_net,
+                small_net=small_net,
+                super_large_in=super_large_in,
+                super_large_out=super_large_out,
+                large_in=large_in,
+                large_out=large_out,
+                ddx=ddx,
+                ddy=ddy,
+                ddz=ddz,
+            )
+            logger.debug("Miaoxiang 主力资金: 超大单净=%.0f, 大单净=%.0f, DDX=%.2f",
+                         result.super_large_net, result.large_net, result.ddx)
+            logger.debug("Miaoxiang get_capital_flow 完成 耗时%.2fs", time.monotonic() - start)
+            return result
+        except Exception as e:
+            logger.warning("Miaoxiang get_capital_flow 失败: %s", e)
+            raise
+
+    async def get_valuation(self, code: str) -> Optional[Valuation]:
+        start = time.monotonic()
+        logger.debug("Miaoxiang 获取估值数据: code=%s", code)
+        try:
+            dto_list = await asyncio.to_thread(
+                self._query_and_parse,
+                f"{code} 市盈率 市净率"
+            )
+            pe_ttm = 0.0
+            pb = 0.0
+            pe_percentile = 0.0
+            pb_percentile = 0.0
+
+            for dto in dto_list:
+                rows = _parse_table_to_rows(dto)
+                if not rows:
+                    continue
+                row = rows[-1]
+
+                if pe_ttm == 0.0:
+                    pe_ttm = _mx_parse_float(_find_in_row(row, ["市盈率", "PE(TTM)", "滚动市盈率"]))
+                if pb == 0.0:
+                    pb = _mx_parse_float(_find_in_row(row, ["市净率", "PB"]))
+                if pe_percentile == 0.0:
+                    pe_percentile = _mx_parse_float(_find_in_row(row, ["市盈率分位", "PE分位"]))
+                if pb_percentile == 0.0:
+                    pb_percentile = _mx_parse_float(_find_in_row(row, ["市净率分位", "PB分位"]))
+
+            if pe_ttm <= 0.0 and pb <= 0.0:
+                logger.debug("Miaoxiang 估值数据: 无有效数据")
+                return None
+
+            result = Valuation(
+                pe_ttm=pe_ttm,
+                pb=pb,
+                pe_percentile=pe_percentile,
+                pb_percentile=pb_percentile,
+            )
+            logger.debug("Miaoxiang 估值: PE=%.1f, PB=%.1f", result.pe_ttm, result.pb)
+            logger.debug("Miaoxiang get_valuation 完成 耗时%.2fs", time.monotonic() - start)
+            return result
+        except Exception as e:
+            logger.warning("Miaoxiang get_valuation 失败: %s", e)
+            raise
+
+    async def get_financial_data(self, code: str) -> Optional[FinancialData]:
+        start = time.monotonic()
+        logger.debug("Miaoxiang 获取财务数据: code=%s", code)
+        try:
+            dto_list = await asyncio.to_thread(
+                self._query_and_parse,
+                f"{code} 净利润 营业收入 同比增长率 净资产收益率 毛利率 资产负债率 机构持股比例"
+            )
+            net_profit = 0.0
+            revenue = 0.0
+            net_profit_yoy = 0.0
+            revenue_yoy = 0.0
+            roe = 0.0
+            gross_margin = 0.0
+            debt_ratio = 0.0
+            forecast_profit = 0.0
+            forecast_growth = 0.0
+            institution_holding_pct = 0.0
+
+            for dto in dto_list:
+                rows = _parse_table_to_rows(dto)
+                if not rows:
+                    continue
+                row = rows[-1]
+
+                if net_profit == 0.0:
+                    net_profit = _mx_parse_float(_find_in_row(row, ["归母净利润", "净利润"]))
+                if revenue == 0.0:
+                    revenue = _mx_parse_float(_find_in_row(row, ["营业收入", "营收"]))
+                if net_profit_yoy == 0.0:
+                    net_profit_yoy = _mx_parse_float(_find_in_row(row, ["净利润同比增长", "归母净利润同比增长"]))
+                if revenue_yoy == 0.0:
+                    revenue_yoy = _mx_parse_float(_find_in_row(row, ["营业收入同比增长", "营收同比增长"]))
+                if roe == 0.0:
+                    roe = _mx_parse_float(_find_in_row(row, ["净资产收益率", "ROE"]))
+                if gross_margin == 0.0:
+                    gross_margin = _mx_parse_float(_find_in_row(row, ["销售毛利率", "毛利率"]))
+                if debt_ratio == 0.0:
+                    debt_ratio = _mx_parse_float(_find_in_row(row, ["资产负债率"]))
+                if forecast_profit == 0.0:
+                    forecast_profit = _mx_parse_float(_find_in_row(row, ["预测归母净利润中值", "预测净利润"]))
+                if forecast_growth == 0.0:
+                    forecast_growth = _mx_parse_float(_find_in_row(row, ["预测增长率", "预测净利润增长率"]))
+                if institution_holding_pct == 0.0:
+                    institution_holding_pct = _mx_parse_float(_find_in_row(row, ["机构持股比例"]))
+
+            has_data = any(v != 0.0 for v in [
+                net_profit, revenue, roe, gross_margin, debt_ratio,
+            ])
+            if not has_data:
+                logger.debug("Miaoxiang 财务数据: 无有效数据")
+                return None
+
+            result = FinancialData(
+                net_profit=net_profit,
+                revenue=revenue,
+                net_profit_yoy=net_profit_yoy,
+                revenue_yoy=revenue_yoy,
+                roe=roe,
+                gross_margin=gross_margin,
+                debt_ratio=debt_ratio,
+                forecast_profit=forecast_profit,
+                forecast_growth=forecast_growth,
+                institution_holding_pct=institution_holding_pct,
+            )
+            logger.debug("Miaoxiang 财务: 净利润=%.0f, 营收=%.0f, ROE=%.1f%%, 毛利率=%.1f%%",
+                         result.net_profit, result.revenue, result.roe, result.gross_margin)
+            logger.debug("Miaoxiang get_financial_data 完成 耗时%.2fs", time.monotonic() - start)
+            return result
+        except Exception as e:
+            logger.warning("Miaoxiang get_financial_data 失败: %s", e)
+            raise

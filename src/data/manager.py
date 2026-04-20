@@ -9,13 +9,16 @@ import pandas as pd
 from src.data.provider import MarketDataProvider
 from src.data.utils import calculate_chip_from_daily
 from src.models import (
+    CapitalFlow,
     ChipDistribution,
+    FinancialData,
     IndexData,
     MarketOverview,
     MarketStatistics,
     RealtimeQuote,
     SectorData,
     StockInfo,
+    Valuation,
 )
 
 logger = logging.getLogger(__name__)
@@ -178,3 +181,57 @@ class DataProviderManager(MarketDataProvider):
                 continue
         logger.warning("get_market_statistics() 所有数据源均失败")
         return MarketStatistics()
+
+    async def get_capital_flow(self, code: str) -> Optional[CapitalFlow]:
+        code = self.normalize_code(code)
+        start = time.monotonic()
+        for i, provider in enumerate(self.providers):
+            try:
+                result = await provider.get_capital_flow(code)
+                if result is not None:
+                    logger.info("[数据源 %d/%d] %s 获取主力资金成功: 超大单净额=%.0f",
+                                i + 1, len(self.providers), provider.__class__.__name__,
+                                result.super_large_net)
+                    logger.debug("get_capital_flow(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+                    return result
+            except Exception as e:
+                logger.warning("[数据源切换] %s get_capital_flow 失败: %s", provider.__class__.__name__, e)
+                continue
+        logger.debug("get_capital_flow(%s) 所有数据源均不支持或失败", code)
+        return None
+
+    async def get_valuation(self, code: str) -> Optional[Valuation]:
+        code = self.normalize_code(code)
+        start = time.monotonic()
+        for i, provider in enumerate(self.providers):
+            try:
+                result = await provider.get_valuation(code)
+                if result is not None:
+                    logger.info("[数据源 %d/%d] %s 获取估值数据成功: PE=%.1f, PB=%.1f",
+                                i + 1, len(self.providers), provider.__class__.__name__,
+                                result.pe_ttm, result.pb)
+                    logger.debug("get_valuation(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+                    return result
+            except Exception as e:
+                logger.warning("[数据源切换] %s get_valuation 失败: %s", provider.__class__.__name__, e)
+                continue
+        logger.debug("get_valuation(%s) 所有数据源均不支持或失败", code)
+        return None
+
+    async def get_financial_data(self, code: str) -> Optional[FinancialData]:
+        code = self.normalize_code(code)
+        start = time.monotonic()
+        for i, provider in enumerate(self.providers):
+            try:
+                result = await provider.get_financial_data(code)
+                if result is not None:
+                    logger.info("[数据源 %d/%d] %s 获取财务数据成功: ROE=%.1f%%, 毛利率=%.1f%%",
+                                i + 1, len(self.providers), provider.__class__.__name__,
+                                result.roe, result.gross_margin)
+                    logger.debug("get_financial_data(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+                    return result
+            except Exception as e:
+                logger.warning("[数据源切换] %s get_financial_data 失败: %s", provider.__class__.__name__, e)
+                continue
+        logger.debug("get_financial_data(%s) 所有数据源均不支持或失败", code)
+        return None

@@ -54,6 +54,46 @@ class ChipDistribution:
 
 
 @dataclass
+class CapitalFlow:
+    """主力资金流向"""
+    super_large_net: float = 0.0
+    large_net: float = 0.0
+    medium_net: float = 0.0
+    small_net: float = 0.0
+    super_large_in: float = 0.0
+    super_large_out: float = 0.0
+    large_in: float = 0.0
+    large_out: float = 0.0
+    ddx: float = 0.0
+    ddy: float = 0.0
+    ddz: float = 0.0
+
+
+@dataclass
+class Valuation:
+    """估值数据"""
+    pe_ttm: float = 0.0
+    pb: float = 0.0
+    pe_percentile: float = 0.0
+    pb_percentile: float = 0.0
+
+
+@dataclass
+class FinancialData:
+    """核心财务指标"""
+    net_profit: float = 0.0
+    revenue: float = 0.0
+    net_profit_yoy: float = 0.0
+    revenue_yoy: float = 0.0
+    roe: float = 0.0
+    gross_margin: float = 0.0
+    debt_ratio: float = 0.0
+    forecast_profit: float = 0.0
+    forecast_growth: float = 0.0
+    institution_holding_pct: float = 0.0
+
+
+@dataclass
 class NewsItem:
     """新闻条目"""
     title: str = ""
@@ -93,6 +133,9 @@ class StockAnalysisResult:
     realtime: Optional[RealtimeQuote] = None
     tech: Optional[TechnicalIndicators] = None
     chip: Optional[ChipDistribution] = None
+    capital_flow: Optional[CapitalFlow] = None
+    valuation: Optional[Valuation] = None
+    financial: Optional[FinancialData] = None
     news: list[NewsItem] = field(default_factory=list)
 
 

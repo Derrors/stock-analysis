@@ -6,12 +6,15 @@ from typing import Optional
 import pandas as pd
 
 from src.models import (
+    CapitalFlow,
     ChipDistribution,
+    FinancialData,
     IndexData,
     MarketOverview,
     MarketStatistics,
     RealtimeQuote,
     StockInfo,
+    Valuation,
 )
 
 
@@ -49,6 +52,18 @@ class MarketDataProvider(ABC):
     @abstractmethod
     async def get_indices(self) -> list[IndexData]:
         """获取主要指数数据"""
+
+    async def get_capital_flow(self, code: str) -> Optional[CapitalFlow]:
+        """获取主力资金流向，不支持时返回 None"""
+        return None
+
+    async def get_valuation(self, code: str) -> Optional[Valuation]:
+        """获取估值数据（PE/PB等），不支持时返回 None"""
+        return None
+
+    async def get_financial_data(self, code: str) -> Optional[FinancialData]:
+        """获取核心财务指标，不支持时返回 None"""
+        return None
 
     def normalize_code(self, code: str) -> str:
         """标准化股票代码，去除可能的前缀后缀"""

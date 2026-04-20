@@ -11,13 +11,16 @@ from src.config import SkillConfig
 from src.data.provider import MarketDataProvider
 from src.llm.client import LLMClient
 from src.models import (
+    CapitalFlow,
     CheckItem,
     ChipDistribution,
+    FinancialData,
     NewsItem,
     RealtimeQuote,
     StockAnalysisResult,
     StockInfo,
     TechnicalIndicators,
+    Valuation,
 )
 from src.search.base import NewsSearchEngine
 
@@ -99,6 +102,15 @@ class StockAnalyzer:
         chip = await self._get_chip(code)
         logger.debug("[个股分析] 筹码分布: %s", "有数据" if chip else "无数据")
 
+        capital_flow = await self._get_capital_flow(code)
+        logger.debug("[个股分析] 主力资金: %s", "有数据" if capital_flow else "无数据")
+
+        valuation = await self._get_valuation(code)
+        logger.debug("[个股分析] 估值数据: %s", "有数据" if valuation else "无数据")
+
+        financial = await self._get_financial_data(code)
+        logger.debug("[个股分析] 财务数据: %s", "有数据" if financial else "无数据")
+
         news = await self._search_news(stock_info.name, stock_info.code)
         logger.debug("[个股分析] 新闻舆情: %d条", len(news))
 
@@ -112,7 +124,7 @@ class StockAnalyzer:
             bias_threshold=self.config.bias_threshold,
             news_max_age_days=self.config.news_max_age_days,
         )
-        user_prompt = self._build_user_prompt(stock_info, realtime, tech, chip, news)
+        user_prompt = self._build_user_prompt(stock_info, realtime, tech, chip, capital_flow, valuation, financial, news)
 
         try:
             result_dict = await self.llm.analyze_json(system_prompt, user_prompt)
@@ -121,6 +133,9 @@ class StockAnalyzer:
             result.realtime = realtime
             result.tech = tech
             result.chip = chip
+            result.capital_flow = capital_flow
+            result.valuation = valuation
+            result.financial = financial
             result.news = news
             logger.info("[个股分析] LLM 分析完成: %s → %s (评分%d, %s)",
                         code, result.action, result.score, result.trend)
@@ -136,6 +151,9 @@ class StockAnalyzer:
                 realtime=realtime,
                 tech=tech,
                 chip=chip,
+                capital_flow=capital_flow,
+                valuation=valuation,
+                financial=financial,
                 news=news,
             )
 
@@ -147,6 +165,27 @@ class StockAnalyzer:
             return await self.data_provider.get_chip_distribution(code)
         except Exception as e:
             logger.warning("获取筹码分布失败 %s: %s", code, e)
+            return None
+
+    async def _get_capital_flow(self, code: str) -> Optional[CapitalFlow]:
+        try:
+            return await self.data_provider.get_capital_flow(code)
+        except Exception as e:
+            logger.warning("获取主力资金流向失败 %s: %s", code, e)
+            return None
+
+    async def _get_valuation(self, code: str) -> Optional[Valuation]:
+        try:
+            return await self.data_provider.get_valuation(code)
+        except Exception as e:
+            logger.warning("获取估值数据失败 %s: %s", code, e)
+            return None
+
+    async def _get_financial_data(self, code: str) -> Optional[FinancialData]:
+        try:
+            return await self.data_provider.get_financial_data(code)
+        except Exception as e:
+            logger.warning("获取财务数据失败 %s: %s", code, e)
             return None
 
     async def _search_news(self, stock_name: str, stock_code: str) -> list[NewsItem]:
@@ -174,9 +213,11 @@ class StockAnalyzer:
         realtime: RealtimeQuote,
         tech: TechnicalIndicators,
         chip: Optional[ChipDistribution],
+        capital_flow: Optional[CapitalFlow],
+        valuation: Optional[Valuation],
+        financial: Optional[FinancialData],
         news: list[NewsItem],
     ) -> str:
-        """组装用户 Prompt"""
         news_text = "暂无新闻数据"
         if news:
             news_lines = []
@@ -185,6 +226,63 @@ class StockAnalyzer:
             news_text = "\n".join(news_lines)
 
         chip_info = chip or ChipDistribution()
+
+        valuation_text = "暂无估值数据"
+        if valuation:
+            parts = []
+            if valuation.pe_ttm > 0:
+                parts.append(f"- 市盈率(TTM)：{valuation.pe_ttm:.1f}")
+            if valuation.pb > 0:
+                parts.append(f"- 市净率：{valuation.pb:.2f}")
+            if valuation.pe_percentile > 0:
+                parts.append(f"- PE历史分位：{valuation.pe_percentile:.1f}%")
+            if valuation.pb_percentile > 0:
+                parts.append(f"- PB历史分位：{valuation.pb_percentile:.1f}%")
+            valuation_text = "\n".join(parts) if parts else "暂无估值数据"
+
+        financial_text = "暂无财务数据"
+        if financial:
+            parts = []
+            if financial.net_profit != 0:
+                parts.append(f"- 归母净利润：{financial.net_profit:.0f}元")
+            if financial.revenue != 0:
+                parts.append(f"- 营业收入：{financial.revenue:.0f}元")
+            if financial.net_profit_yoy != 0:
+                parts.append(f"- 净利润同比增长：{financial.net_profit_yoy:.2f}%")
+            if financial.revenue_yoy != 0:
+                parts.append(f"- 营收同比增长：{financial.revenue_yoy:.2f}%")
+            if financial.roe != 0:
+                parts.append(f"- 净资产收益率(ROE)：{financial.roe:.2f}%")
+            if financial.gross_margin != 0:
+                parts.append(f"- 毛利率：{financial.gross_margin:.2f}%")
+            if financial.debt_ratio != 0:
+                parts.append(f"- 资产负债率：{financial.debt_ratio:.2f}%")
+            if financial.forecast_profit != 0:
+                parts.append(f"- 预测净利润中值：{financial.forecast_profit:.0f}元")
+            if financial.forecast_growth != 0:
+                parts.append(f"- 预测增长率：{financial.forecast_growth:.2f}%")
+            if financial.institution_holding_pct != 0:
+                parts.append(f"- 机构持股比例：{financial.institution_holding_pct:.2f}%")
+            financial_text = "\n".join(parts) if parts else "暂无财务数据"
+
+        capital_flow_text = "暂无主力资金数据"
+        if capital_flow:
+            parts = []
+            if capital_flow.super_large_net != 0:
+                parts.append(f"- 超大单净额：{capital_flow.super_large_net:.0f}元")
+            if capital_flow.large_net != 0:
+                parts.append(f"- 大单净额：{capital_flow.large_net:.0f}元")
+            if capital_flow.medium_net != 0:
+                parts.append(f"- 中单净额：{capital_flow.medium_net:.0f}元")
+            if capital_flow.small_net != 0:
+                parts.append(f"- 小单净额：{capital_flow.small_net:.0f}元")
+            if capital_flow.ddx != 0:
+                parts.append(f"- DDX(大单动向)：{capital_flow.ddx:.2f}")
+            if capital_flow.ddy != 0:
+                parts.append(f"- DDY(筹码集中度变化)：{capital_flow.ddy:.2f}")
+            if capital_flow.ddz != 0:
+                parts.append(f"- DDZ(资金强度)：{capital_flow.ddz:.2f}")
+            capital_flow_text = "\n".join(parts) if parts else "暂无主力资金数据"
 
         return STOCK_ANALYSIS_USER_PROMPT.format(
             stock_code=stock_info.code,
@@ -200,6 +298,9 @@ class StockAnalyzer:
             open_price=realtime.open or "未知",
             amplitude=f"{realtime.amplitude:.2f}" if realtime.amplitude else "0.00",
             turnover_rate=f"{realtime.turnover_rate:.2f}" if realtime.turnover_rate else "0.00",
+            valuation_text=valuation_text,
+            financial_text=financial_text,
+            capital_flow_text=capital_flow_text,
             ma5=tech.ma5 or "未知",
             ma10=tech.ma10 or "未知",
             ma20=tech.ma20 or "未知",

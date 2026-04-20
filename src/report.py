@@ -26,10 +26,12 @@ def _format_price(val) -> str:
 def _format_volume(val) -> str:
     if val is None or val == 0:
         return "—"
-    if val >= 1e8:
-        return f"{val / 1e8:.2f}亿"
-    if val >= 1e4:
-        return f"{val / 1e4:.2f}万"
+    abs_val = abs(val)
+    sign = "-" if val < 0 else ""
+    if abs_val >= 1e8:
+        return f"{sign}{abs_val / 1e8:.2f}亿"
+    if abs_val >= 1e4:
+        return f"{sign}{abs_val / 1e4:.2f}万"
     return f"{val:.0f}"
 
 
@@ -98,6 +100,90 @@ def generate_stock_report(result: StockAnalysisResult) -> str:
                      f"| {_format_volume(rt.volume)} | {_format_volume(rt.turnover)} "
                      f"| {rt.turnover_rate:.2f}% | {rt.amplitude:.2f}% |")
         lines.append("")
+
+    valuation = result.valuation
+    if valuation and (valuation.pe_ttm > 0 or valuation.pb > 0):
+        lines.append("## 📐 估值数据")
+        lines.append("")
+        lines.append("| 指标 | 数值 | 历史分位 |")
+        lines.append("|------|------|----------|")
+        if valuation.pe_ttm > 0:
+            pe_pct = f"{valuation.pe_percentile:.1f}%" if valuation.pe_percentile > 0 else "—"
+            lines.append(f"| 市盈率(TTM) | {valuation.pe_ttm:.1f} | {pe_pct} |")
+        if valuation.pb > 0:
+            pb_pct = f"{valuation.pb_percentile:.1f}%" if valuation.pb_percentile > 0 else "—"
+            lines.append(f"| 市净率 | {valuation.pb:.2f} | {pb_pct} |")
+        lines.append("")
+
+    financial = result.financial
+    if financial and any(v != 0 for v in [
+        financial.net_profit, financial.revenue, financial.roe,
+        financial.gross_margin, financial.debt_ratio,
+    ]):
+        lines.append("## 📋 核心财务指标")
+        lines.append("")
+        lines.append("| 指标 | 数值 |")
+        lines.append("|------|------|")
+        if financial.net_profit != 0:
+            lines.append(f"| 归母净利润 | {_format_volume(financial.net_profit)} |")
+        if financial.revenue != 0:
+            lines.append(f"| 营业收入 | {_format_volume(financial.revenue)} |")
+        if financial.net_profit_yoy != 0:
+            icon = "🟢" if financial.net_profit_yoy > 0 else "🔴"
+            lines.append(f"| 净利润同比 | {icon} {financial.net_profit_yoy:.2f}% |")
+        if financial.revenue_yoy != 0:
+            icon = "🟢" if financial.revenue_yoy > 0 else "🔴"
+            lines.append(f"| 营收同比 | {icon} {financial.revenue_yoy:.2f}% |")
+        if financial.roe != 0:
+            lines.append(f"| ROE | {financial.roe:.2f}% |")
+        if financial.gross_margin != 0:
+            lines.append(f"| 毛利率 | {financial.gross_margin:.2f}% |")
+        if financial.debt_ratio != 0:
+            lines.append(f"| 资产负债率 | {financial.debt_ratio:.2f}% |")
+        if financial.forecast_profit != 0:
+            lines.append(f"| 预测净利润 | {_format_volume(financial.forecast_profit)} |")
+        if financial.forecast_growth != 0:
+            icon = "🟢" if financial.forecast_growth > 0 else "🔴"
+            lines.append(f"| 预测增长率 | {icon} {financial.forecast_growth:.2f}% |")
+        if financial.institution_holding_pct != 0:
+            lines.append(f"| 机构持股比例 | {financial.institution_holding_pct:.2f}% |")
+        lines.append("")
+
+    capital_flow = result.capital_flow
+    if capital_flow and any(v != 0 for v in [
+        capital_flow.super_large_net, capital_flow.large_net,
+        capital_flow.ddx, capital_flow.ddy, capital_flow.ddz,
+    ]):
+        lines.append("## 💸 主力资金流向")
+        lines.append("")
+        lines.append("| 资金类型 | 净额 |")
+        lines.append("|----------|------|")
+        if capital_flow.super_large_net != 0:
+            icon = "🟢" if capital_flow.super_large_net > 0 else "🔴"
+            lines.append(f"| {icon} 超大单 | {_format_volume(capital_flow.super_large_net)} |")
+        if capital_flow.large_net != 0:
+            icon = "🟢" if capital_flow.large_net > 0 else "🔴"
+            lines.append(f"| {icon} 大单 | {_format_volume(capital_flow.large_net)} |")
+        if capital_flow.medium_net != 0:
+            icon = "🟢" if capital_flow.medium_net > 0 else "🔴"
+            lines.append(f"| {icon} 中单 | {_format_volume(capital_flow.medium_net)} |")
+        if capital_flow.small_net != 0:
+            icon = "🟢" if capital_flow.small_net > 0 else "🔴"
+            lines.append(f"| {icon} 小单 | {_format_volume(capital_flow.small_net)} |")
+        lines.append("")
+        if any(v != 0 for v in [capital_flow.ddx, capital_flow.ddy, capital_flow.ddz]):
+            lines.append("| 技术指标 | 数值 | 含义 |")
+            lines.append("|----------|------|------|")
+            if capital_flow.ddx != 0:
+                icon = "🟢" if capital_flow.ddx > 0 else "🔴"
+                lines.append(f"| {icon} DDX | {capital_flow.ddx:.2f} | 大单动向 |")
+            if capital_flow.ddy != 0:
+                icon = "🟢" if capital_flow.ddy > 0 else "🔴"
+                lines.append(f"| {icon} DDY | {capital_flow.ddy:.2f} | 筹码集中度变化 |")
+            if capital_flow.ddz != 0:
+                icon = "🟢" if capital_flow.ddz > 0 else "🔴"
+                lines.append(f"| {icon} DDZ | {capital_flow.ddz:.2f} | 资金强度 |")
+            lines.append("")
 
     tech = result.tech
     if tech and (tech.ma5 > 0 or tech.ma20 > 0):
