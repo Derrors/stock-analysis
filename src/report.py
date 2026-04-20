@@ -272,7 +272,7 @@ def generate_stock_report(result: StockAnalysisResult) -> str:
         lines.append("")
 
     if result.raw_report:
-        lines.append("## 📝 LLM 深度分析")
+        lines.append("## 📝 深度分析")
         lines.append("")
         lines.append(result.raw_report)
         lines.append("")
