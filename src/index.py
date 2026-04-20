@@ -19,6 +19,7 @@ from src.report import save_report
 from src.search.base import NewsSearchEngine
 from src.search.bocha import BochaSearch
 from src.search.brave import BraveSearch
+from src.search.miaoxiang import MiaoxiangSearch
 from src.search.serpapi import SerpAPISearch
 from src.search.tavily import TavilySearch
 
@@ -48,6 +49,8 @@ def _build_data_provider(config: SkillConfig) -> DataProviderManager:
 
 def _build_search_engines(config: SkillConfig) -> list[NewsSearchEngine]:
     engines: list[NewsSearchEngine] = []
+    if config.mx_apikey:
+        engines.append(MiaoxiangSearch(config.mx_apikey))
     if config.serpapi_key:
         engines.append(SerpAPISearch(config.serpapi_key))
     if config.tavily_key:

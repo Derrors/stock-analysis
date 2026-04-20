@@ -255,50 +255,70 @@ class MiaoxiangProvider(MarketDataProvider):
         start = time.monotonic()
         logger.debug("Miaoxiang 获取日K线: code=%s, days=%d", code, days)
         try:
-            dto_list = await asyncio.to_thread(
-                self._query_and_parse,
-                f"{code} 近{days}个交易日 开盘价 收盘价 最高价 最低价 成交量 成交额"
-            )
-            for dto in dto_list:
-                rows = _parse_table_to_rows(dto)
-                if len(rows) < 2:
-                    continue
+            capped = min(days, 55)
+            df = await self._fetch_daily_chunk(code, capped)
 
-                has_close = any(_find_in_row(r, ["收盘价"]) for r in rows)
-                if not has_close:
-                    continue
+            if df.empty and days > 55:
+                logger.debug("Miaoxiang 55天日K线为空, 尝试30天")
+                df = await self._fetch_daily_chunk(code, 30)
 
-                records = []
-                for row in rows:
-                    date_str = row.get("date", "")
-                    close_val = _mx_parse_float(_find_in_row(row, ["收盘价"]))
-                    if close_val <= 0:
-                        continue
-                    records.append({
-                        "date": re.sub(r"\(.*?\)", "", date_str).strip(),
-                        "open": _mx_parse_float(_find_in_row(row, ["开盘价"])),
-                        "close": close_val,
-                        "high": _mx_parse_float(_find_in_row(row, ["最高价"])),
-                        "low": _mx_parse_float(_find_in_row(row, ["最低价"])),
-                        "volume": _mx_parse_float(_find_in_row(row, ["成交量"])),
-                        "turnover": _mx_parse_float(_find_in_row(row, ["成交额"])),
-                    })
-
-                if records:
-                    df = pd.DataFrame(records)
-                    if "date" in df.columns:
-                        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-                        df = df.sort_values("date").reset_index(drop=True)
-                    valid_count = int((df["close"] > 0).sum())
-                    logger.debug("Miaoxiang 日K线处理完成: %d条 (有效%d条)", len(df), valid_count)
-                    logger.debug("Miaoxiang get_daily_data 完成 耗时%.2fs", time.monotonic() - start)
-                    return df
-
-            logger.debug("Miaoxiang get_daily_data: 未找到多日K线数据")
+            if not df.empty:
+                valid_count = int((df["close"] > 0).sum())
+                logger.debug("Miaoxiang 日K线处理完成: %d条 (有效%d条, 请求%d天, 上限55天)",
+                             len(df), valid_count, days)
+            logger.debug("Miaoxiang get_daily_data 完成 耗时%.2fs", time.monotonic() - start)
+            return df
         except Exception as e:
             logger.warning("Miaoxiang get_daily_data 失败: %s", e)
             raise
         logger.debug("Miaoxiang get_daily_data 完成 耗时%.2fs", time.monotonic() - start)
+        return pd.DataFrame()
+
+    async def _fetch_daily_chunk(self, code: str, days: int) -> pd.DataFrame:
+        dto_list = await asyncio.to_thread(
+            self._query_and_parse,
+            f"{code} 最近{days}个交易日 开盘价 收盘价 最高价 最低价 成交量 成交额"
+        )
+        for dto in dto_list:
+            rows = _parse_table_to_rows(dto)
+            if len(rows) < 2:
+                continue
+
+            has_close = any(_find_in_row(r, ["收盘价"]) for r in rows)
+            if not has_close:
+                continue
+
+            is_daily = True
+            first_date = rows[0].get("date", "")
+            if "(月" in first_date or "月)" in first_date:
+                is_daily = False
+            if not is_daily:
+                logger.debug("Miaoxiang 跳过月度数据 (rows=%d)", len(rows))
+                continue
+
+            records = []
+            for row in rows:
+                date_str = row.get("date", "")
+                close_val = _mx_parse_float(_find_in_row(row, ["收盘价"]))
+                if close_val <= 0:
+                    continue
+                records.append({
+                    "date": re.sub(r"\(.*?\)", "", date_str).strip(),
+                    "open": _mx_parse_float(_find_in_row(row, ["开盘价"])),
+                    "close": close_val,
+                    "high": _mx_parse_float(_find_in_row(row, ["最高价"])),
+                    "low": _mx_parse_float(_find_in_row(row, ["最低价"])),
+                    "volume": _mx_parse_float(_find_in_row(row, ["成交量"])),
+                    "turnover": _mx_parse_float(_find_in_row(row, ["成交额"])),
+                })
+
+            if records:
+                df = pd.DataFrame(records)
+                if "date" in df.columns:
+                    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+                    df = df.sort_values("date").reset_index(drop=True)
+                return df
+
         return pd.DataFrame()
 
     async def get_realtime_quote(self, code: str) -> RealtimeQuote:

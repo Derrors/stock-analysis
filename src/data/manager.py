@@ -51,19 +51,32 @@ class DataProviderManager(MarketDataProvider):
     async def get_daily_data(self, code: str, days: int = 120) -> pd.DataFrame:
         code = self.normalize_code(code)
         start = time.monotonic()
+        best_df = pd.DataFrame()
+        best_len = 0
         for i, provider in enumerate(self.providers):
             try:
                 result = await provider.get_daily_data(code, days)
                 if result is not None and not result.empty:
-                    logger.info("[数据源 %d/%d] %s 获取日K线成功: %d 条", i + 1, len(self.providers), provider.__class__.__name__, len(result))
-                    logger.debug("get_daily_data(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-                logger.warning("[数据源 %d/%d] %s 日K线数据为空", i + 1, len(self.providers), provider.__class__.__name__)
+                    result_len = len(result)
+                    logger.info("[数据源 %d/%d] %s 获取日K线: %d 条 (请求%d天)",
+                                i + 1, len(self.providers), provider.__class__.__name__,
+                                result_len, days)
+                    if result_len > best_len:
+                        best_df = result
+                        best_len = result_len
+                    if result_len >= days * 0.8:
+                        logger.debug("get_daily_data(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+                        return best_df
+                else:
+                    logger.warning("[数据源 %d/%d] %s 日K线数据为空", i + 1, len(self.providers), provider.__class__.__name__)
             except Exception as e:
                 logger.warning("[数据源切换] %s get_daily_data 失败: %s", provider.__class__.__name__, e)
                 continue
-        logger.warning("get_daily_data(%s) 所有数据源均失败", code)
-        return pd.DataFrame()
+        if not best_df.empty:
+            logger.debug("get_daily_data(%s) 完成 耗时%.2fs (最佳:%d条)", code, time.monotonic() - start, best_len)
+        else:
+            logger.warning("get_daily_data(%s) 所有数据源均失败", code)
+        return best_df
 
     async def get_realtime_quote(self, code: str) -> RealtimeQuote:
         code = self.normalize_code(code)

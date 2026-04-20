@@ -101,6 +101,8 @@ class NewsItem:
     date: str = ""
     source: str = ""
     url: str = ""
+    info_type: str = ""
+    content: str = ""
 
 
 @dataclass
