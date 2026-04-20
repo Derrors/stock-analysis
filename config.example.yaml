@@ -9,6 +9,9 @@ tavily_key: ""
 brave_key: ""
 bocha_key: ""
 
+# 妙想金融数据源（可选）— 配置后自动成为第一优先级
+mx_apikey: ""
+
 # 分析参数
 bias_threshold: 5.0
 news_max_age_days: 3

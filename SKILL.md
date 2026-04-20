@@ -130,7 +130,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True})
 
 ## 数据源
 
-行情数据采用三级自动容灾：Efinance（优先）→ AkShare（备选）→ Pytdx（兜底），均为免费接口无需 Token。详见 references/data-sources.md。
+行情数据采用四级自动容灾：妙想金融（最优先，需 MX_APIKEY）→ Efinance（备选）→ AkShare（备选）→ Pytdx（兜底）。配置 MX_APIKEY 后妙想自动成为最高优先级；未配置时从 Efinance 开始。详见 references/data-sources.md。
 
 ## 环境变量
 
@@ -143,6 +143,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True})
 | TAVILY_KEY | 否 | Tavily 搜索 Key |
 | BRAVE_KEY | 否 | Brave 搜索 Key |
 | BOCHA_KEY | 否 | 博查搜索 Key |
+| MX_APIKEY | 否 | 妙想金融数据 API Key（配置后自动成为第一优先级数据源） |
 
 ## 注意事项
 

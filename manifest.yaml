@@ -42,6 +42,10 @@ config:
     type: string
     required: false
     description: 博查搜索Key
+  - key: mx_apikey
+    type: string
+    required: false
+    description: 妙想金融数据API Key（配置后自动成为第一优先级数据源）
   - key: bias_threshold
     type: number
     required: false

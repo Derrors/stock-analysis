@@ -37,6 +37,8 @@ class SkillConfig:
     brave_key: str = field(default_factory=lambda: os.getenv("BRAVE_KEY", ""))
     bocha_key: str = field(default_factory=lambda: os.getenv("BOCHA_KEY", ""))
 
+    mx_apikey: str = field(default_factory=lambda: os.getenv("MX_APIKEY", ""))
+
     bias_threshold: float = field(default_factory=lambda: float(os.getenv("BIAS_THRESHOLD", "5.0")))
     news_max_age_days: int = field(default_factory=lambda: int(os.getenv("NEWS_MAX_AGE_DAYS", "3")))
     enable_chip: bool = field(default_factory=lambda: os.getenv("ENABLE_CHIP", "true").lower() == "true")

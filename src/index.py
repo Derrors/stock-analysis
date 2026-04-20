@@ -11,6 +11,7 @@ from src.config import SkillConfig, setup_logging
 from src.data.akshare_provider import AkShareProvider
 from src.data.efinance_provider import EfinanceProvider
 from src.data.manager import DataProviderManager
+from src.data.miaoxiang_provider import MiaoxiangProvider
 from src.data.pytdx_provider import PytdxProvider
 from src.llm.client import LLMClient
 from src.models import MarketAnalysisResult, StockAnalysisResult
@@ -38,7 +39,11 @@ def _dataclass_to_dict(obj) -> dict | list | str | int | float | bool | None:
 
 
 def _build_data_provider(config: SkillConfig) -> DataProviderManager:
-    return DataProviderManager([EfinanceProvider(), AkShareProvider(), PytdxProvider()])
+    providers = []
+    if config.mx_apikey:
+        providers.append(MiaoxiangProvider(config.mx_apikey))
+    providers.extend([EfinanceProvider(), AkShareProvider(), PytdxProvider()])
+    return DataProviderManager(providers)
 
 
 def _build_search_engines(config: SkillConfig) -> list[NewsSearchEngine]:
