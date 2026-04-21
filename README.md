@@ -22,7 +22,7 @@
 
 - **技术面分析**：MA5/MA10/MA20/MA60 均线、多头排列判断、乖离率、量比
 - **筹码分布**：获利比例、平均成本、集中度
-- **舆情情报**：多引擎新闻搜索（SerpAPI / Tavily / Brave / Bocha）
+- **舆情情报**：妙想金融资讯（新闻/研报/公告）+ 多引擎新闻搜索
 - **实时行情**：当前价、涨跌幅、成交量、换手率等
 - **分析结论**：一句话核心结论 + 评分 + 操作方向 + 精确买卖点位 + 操作检查清单 + 买卖策略
 
@@ -70,6 +70,9 @@ cp .env.example .env
 LLM_BASE_URL=https://api.deepseek.com/v1
 LLM_API_KEY=your-api-key-here
 LLM_MODEL=deepseek-chat
+
+# 妙想金融数据（可选，配置后自动成为第一优先级数据源 + 资讯搜索源）
+MX_APIKEY=
 
 # 新闻搜索（至少配置一个，可选）
 SERPAPI_KEY=
@@ -164,13 +167,14 @@ stock-analysis/
 │   │   └── prompts.py           # Prompt 模板
 │   ├── data/
 │   │   ├── provider.py          # 数据源抽象基类
-│   │   ├── efinance_provider.py # Efinance 数据源（优先级 0）
-│   │   ├── akshare_provider.py  # AkShare 数据源（优先级 1）
-│   │   ├── pytdx_provider.py    # Pytdx 数据源（优先级 2）
+│   │   ├── efinance_provider.py # Efinance 数据源（优先级 1）
+│   │   ├── akshare_provider.py  # AkShare 数据源（优先级 2）
+│   │   ├── pytdx_provider.py    # Pytdx 数据源（优先级 3）
 │   │   ├── manager.py           # 数据源管理器（多源自动容灾）
 │   │   └── utils.py             # 公共工具（缓存/统计/限流）
 │   ├── search/
 │   │   ├── base.py              # 搜索引擎抽象基类
+│   │   ├── miaoxiang.py         # 妙想金融资讯搜索（优先级 0）
 │   │   ├── serpapi.py           # SerpAPI 搜索
 │   │   ├── tavily.py            # Tavily 搜索
 │   │   ├── brave.py             # Brave 搜索
@@ -212,9 +216,11 @@ stock-analysis/
 ┌────────────┐ ┌──────┐ ┌──────────┐
 │  src/data/ │ │search│ │   llm/   │
 │   数据层    │ │搜索层 │ │  模型层   │
-│ 三级自动容灾 │ │4 引擎 │ │DeepSeek  │
+│ 四级自动容灾 │ │5 引擎 │ │DeepSeek  │
 │            │ │(可扩展)│ │(OpenAI兼容)│
-│ Efinance   │ └──────┘ └──────────┘
+│ 妙想(可选)  │ └──────┘ └──────────┘
+│  ↓ 失败     │
+│ Efinance   │
 │  ↓ 失败     │
 │ AkShare    │
 │  ↓ 失败     │
@@ -242,6 +248,20 @@ stock-analysis/
 | 财务数据 | ✅ | ❌ | ❌ | ❌ |
 | 主力资金 | ✅ | ❌ | ❌ | ❌ |
 | 估值数据 | ✅ | ❌ | ❌ | ❌ |
+
+### 资讯搜索架构
+
+| 优先级 | 搜索引擎 | 数据源 | 需要 Key | 返回内容 |
+| :---: | --- | --- | :---: | --- |
+| 0 | **妙想搜索** | 东财妙想资讯 API | ✅ `MX_APIKEY` | 完整正文 + 新闻/研报/公告 |
+| 1 | SerpAPI | Google 搜索 | ✅ | snippet |
+| 2 | Tavily | Tavily AI 搜索 | ✅ | snippet |
+| 3 | Brave | Brave 搜索 | ✅ | snippet |
+| 4 | Bocha | 博查搜索 | ✅ | snippet |
+
+> - 配置 `MX_APIKEY` 后妙想搜索自动成为最高优先级，返回新闻 + 研报 + 公告三种类型
+> - 妙想搜索返回完整正文，由 LLM 自动提取核心摘要；其他引擎仅返回 snippet
+> - 研报类型含机构名称和评级（如"中泰证券·研报·买入"），LLM 可据此参考机构观点
 
 ### 反封禁策略
 
@@ -314,7 +334,7 @@ stock-analysis/
 
 ## ⚠️ 注意事项
 
-- **免 Token 数据源**：三级数据源均为免费接口，无需注册或配置 Token
+- **免 Token 数据源**：Efinance / AkShare / Pytdx 均为免费接口，无需注册；妙想金融需配置 `MX_APIKEY`
 - **自动容灾**：任一数据源异常时自动切换至下一级，日志输出 `[数据源切换]` 提示
 - **网络环境**：东财接口在企业内网 / 代理下可能受限，系统会自动回退至新浪或通达信通道
 - **API 限流**：搜索 API 有调用频率限制，频繁调用可能触发限流
