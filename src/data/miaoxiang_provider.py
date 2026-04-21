@@ -415,11 +415,63 @@ class MiaoxiangProvider(MarketDataProvider):
                 "创业板指": "399006",
                 "创业板指数": "399006",
             }
+            code_to_name = {
+                "000001": "上证指数",
+                "399001": "深证成指",
+                "399006": "创业板指",
+            }
             seen_codes: set[str] = set()
+
+            realtime_indices: list[IndexData] = []
+            historical_indices: list[IndexData] = []
+            realtime_dtos = []
+            historical_dtos = []
+
             for dto in dto_list:
                 rows = _parse_table_to_rows(dto)
                 if not rows:
                     continue
+                first_date = rows[0].get("date", "") if rows else ""
+                has_realtime_format = any(kw in first_date for kw in [".SH", ".SZ", ".BJ"])
+                if has_realtime_format and "最新价" in (rows[0].keys() if rows else []):
+                    realtime_dtos.append(dto)
+                else:
+                    historical_dtos.append(dto)
+
+            for dto in realtime_dtos:
+                rows = _parse_table_to_rows(dto)
+                if not rows:
+                    continue
+                for row in rows:
+                    label = row.get("date", "")
+                    code = ""
+                    for candidate in ["000001", "399001", "399006"]:
+                        if candidate in label:
+                            code = candidate
+                            break
+                    if not code or code in seen_codes:
+                        continue
+                    close_val = _mx_parse_float(row.get("最新价", ""))
+                    if close_val <= 0:
+                        continue
+                    change_pct = _mx_parse_float(row.get("涨跌幅", ""))
+                    change_amt = _mx_parse_float(row.get("涨跌额", row.get("涨跌", "")))
+                    if change_amt == 0.0 and close_val > 0 and change_pct != 0.0:
+                        change_amt = round(close_val * change_pct / 100, 2)
+                    seen_codes.add(code)
+                    realtime_indices.append(IndexData(
+                        name=code_to_name.get(code, label),
+                        code=code,
+                        close=close_val,
+                        change_pct=change_pct,
+                        change_amt=change_amt,
+                    ))
+
+            for dto in historical_dtos:
+                rows = _parse_table_to_rows(dto)
+                if not rows:
+                    continue
+
                 entity = dto.get("entityTagDTO") or {}
                 full_name = entity.get("fullName") or ""
                 name = full_name or (dto.get("entityName") or "").split("(")[0]
@@ -428,20 +480,32 @@ class MiaoxiangProvider(MarketDataProvider):
                     continue
 
                 row = rows[-1]
-                close_val = _mx_parse_float(_find_in_row(row, ["最新", "收盘", "点位"]))
+                close_val = _mx_parse_float(_find_in_row(row, ["最新价", "最新", "收盘", "点位"]))
+
+                is_daily = "(日)" in row.get("date", "") or "(周" in row.get("date", "") or "(月" in row.get("date", "")
+                if is_daily:
+                    realtime_val = _mx_parse_float(_find_in_row(row, ["最新价", "最新"]))
+                    if realtime_val > 0:
+                        close_val = realtime_val
+
                 if close_val <= 0:
                     continue
 
+                change_pct = _mx_parse_float(_find_in_row(row, ["涨跌幅"]))
+                change_amt = _mx_parse_float(_find_in_row(row, ["涨跌额", "涨跌值", "涨跌"]))
+
                 seen_codes.add(index_code)
-                idx = IndexData(
+                historical_indices.append(IndexData(
                     name=name,
                     code=index_code,
                     close=close_val,
-                    change_pct=_mx_parse_float(_find_in_row(row, ["涨跌幅"])),
-                    change_amt=_mx_parse_float(_find_in_row(row, ["涨跌额"])),
-                )
-                logger.debug("Miaoxiang 指数 %s: close=%.2f, change_pct=%.2f%%", name, idx.close, idx.change_pct)
-                indices.append(idx)
+                    change_pct=change_pct,
+                    change_amt=change_amt,
+                ))
+                logger.debug("Miaoxiang 指数 %s: close=%.2f, change_pct=%.2f%%", name, close_val, change_pct)
+
+            indices = realtime_indices + historical_indices
+
             logger.debug("Miaoxiang 指数数据: %d个", len(indices))
         except Exception as e:
             logger.warning("Miaoxiang get_indices 失败: %s", e)
