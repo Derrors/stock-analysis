@@ -174,20 +174,24 @@ async def handler(input: dict, context: Optional[dict] = None) -> dict:
     Returns:
         JSON 可序列化的分析结果字典
     """
-    context = context or {}
-    mode = input.get("mode", "stock")
-    save = input.get("save", False)
-    output_dir = input.get("output_dir")
+    try:
+        context = context or {}
+        mode = input.get("mode", "stock")
+        save = input.get("save", False)
+        output_dir = input.get("output_dir")
 
-    config_overrides = {k: v for k, v in input.items() if k not in ("mode", "code", "save", "output_dir")}
-    config = SkillConfig(**config_overrides) if config_overrides else None
+        config_overrides = {k: v for k, v in input.items() if k not in ("mode", "code", "save", "output_dir")}
+        config = SkillConfig(**config_overrides) if config_overrides else None
 
-    if mode == "market":
-        result = await analyze_market(config, save=save, output_dir=output_dir)
-    else:
-        code = input.get("code", "")
-        if not code:
-            return {"error": "缺少股票代码，请在 input.code 中提供"}
-        result = await analyze_stock(code, config, save=save, output_dir=output_dir)
+        if mode == "market":
+            result = await analyze_market(config, save=save, output_dir=output_dir)
+        else:
+            code = input.get("code", "")
+            if not code:
+                return {"error": "缺少股票代码，请在 input.code 中提供"}
+            result = await analyze_stock(code, config, save=save, output_dir=output_dir)
 
-    return _dataclass_to_dict(result)
+        return _dataclass_to_dict(result)
+    except Exception as e:
+        logger.error("Skill 执行失败: %s", e, exc_info=True)
+        return {"error": f"Skill execution failed: {e}"}

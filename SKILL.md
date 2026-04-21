@@ -1,8 +1,8 @@
-***
+---
 
 name: stock-analysis
 description: |
-A股市场分析与个股深度分析技能。支持基本面（财务指标/估值分位）、资金面（主力资金/DDX/DDY/DDZ）、技术面（均线/乖离率/量比）、筹码分布、舆情情报（新闻/研报/公告）等多维度分析，输出结构化评分与操作建议。
+  A股市场分析与个股深度分析技能。支持基本面（财务指标/估值分位）、资金面（主力资金/DDX/DDY/DDZ）、技术面（均线/乖离率/量比）、筹码分布、舆情情报（新闻/研报/公告）等多维度分析，输出结构化评分与操作建议。
 
 Triggers: "分析股票", "个股分析", "市场分析", "A股分析", "stock analysis", "analyze stock", "market analysis", "股票评分", "买卖建议", "涨停分析"
 
@@ -15,22 +15,21 @@ Does NOT trigger:
 Output: 结构化分析报告（评分0-100、操作方向、买卖点位、风险提示、检查清单）
 version: 1.1.0
 metadata:
-openclaw:
-requires:
-env:
+  openclaw:
+    requires:
+      env:
+        - LLM_API_KEY
+        - LLM_BASE_URL
+        - LLM_MODEL
+      bins:
+        - python3
+    primaryEnv: LLM_API_KEY
+    emoji: "📈"
+    install:
+      - kind: uv
+        command: pip install -r requirements.txt
 
-- LLM\_API\_KEY
-- LLM\_BASE\_URL
-- LLM\_MODEL
-  bins:
-- python3
-  primaryEnv: LLM\_API\_KEY
-  emoji: "📈"
-  install:
-- kind: uv
-  command: pip install -r requirements.txt
-
-***
+---
 
 # A股股票市场分析 Skill
 
