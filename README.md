@@ -4,7 +4,7 @@
 
 专为 OpenClaw 等智能体设计的 A 股股票分析技能
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT-0](https://img.shields.io/badge/License-MIT--0-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-green.svg)](https://github.com/openclaw)
 
@@ -343,7 +343,7 @@ stock-analysis/
 
 ## 📄 License
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目基于 [MIT-0 License](LICENSE) 开源。
 
 ## ⚖️ 免责声明
 

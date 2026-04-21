@@ -21,6 +21,15 @@ metadata:
         - LLM_API_KEY
         - LLM_BASE_URL
         - LLM_MODEL
+        - MX_APIKEY
+        - SERPAPI_KEY
+        - TAVILY_KEY
+        - BRAVE_KEY
+        - BOCHA_KEY
+        - BIAS_THRESHOLD
+        - NEWS_MAX_AGE_DAYS
+        - ENABLE_CHIP
+        - LOG_LEVEL
       bins:
         - python3
     primaryEnv: LLM_API_KEY
@@ -99,7 +108,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 | mode        | string  | 是             | "stock" 或 "market"            |
 | code        | string  | mode=stock时必填 | A股股票代码，如 "600519"             |
 | save        | boolean | 否             | 是否保存 Markdown 报告到 reports/ 目录 |
-| output\_dir | string  | 否             | 自定义报告输出目录（需 save=true）        |
+| output_dir | string  | 否             | 自定义报告输出目录（需 save=true）        |
 
 ## 输出格式
 
@@ -192,16 +201,16 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 
 ## 环境变量
 
-| 变量             | 必填 | 说明                                               |
+| 变量            | 必填 | 说明                                               |
 | -------------- | -- | ------------------------------------------------ |
-| LLM\_API\_KEY  | 是  | LLM API Key                                      |
-| LLM\_BASE\_URL | 是  | OpenAI 兼容 API 地址                                 |
-| LLM\_MODEL     | 是  | 模型名称                                             |
-| MX\_APIKEY     | 否  | 妙想金融 API Key（配置后自动成为行情数据 + 财务/资金/估值 + 资讯搜索第一优先级） |
-| SERPAPI\_KEY   | 否  | SerpAPI 搜索 Key                                   |
-| TAVILY\_KEY    | 否  | Tavily 搜索 Key                                    |
-| BRAVE\_KEY     | 否  | Brave 搜索 Key                                     |
-| BOCHA\_KEY     | 否  | 博查搜索 Key                                         |
+| LLM_API_KEY    | 是  | LLM API Key                                      |
+| LLM_BASE_URL   | 是  | OpenAI 兼容 API 地址                                 |
+| LLM_MODEL      | 是  | 模型名称                                             |
+| MX_APIKEY      | 否  | 妙想金融 API Key（配置后自动成为行情数据 + 财务/资金/估值 + 资讯搜索第一优先级） |
+| SERPAPI_KEY    | 否  | SerpAPI 搜索 Key                                   |
+| TAVILY_KEY     | 否  | Tavily 搜索 Key                                    |
+| BRAVE_KEY      | 否  | Brave 搜索 Key                                     |
+| BOCHA_KEY      | 否  | 博查搜索 Key                                         |
 
 ## 注意事项
 

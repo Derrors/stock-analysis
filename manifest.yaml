@@ -1,10 +1,9 @@
 name: stock-analysis
 version: 1.1.0
-author: stock-analysis
-license: MIT
+author: Derrors
+license: MIT-0
 runtime: python
 entry: src/index.py
-min_openclaw_version: "2026.1.0"
 description: A股市场分析与个股深度分析技能，支持基本面（财务/估值）、资金面（主力资金/DDX）、技术面、筹码分布、舆情情报等多维度分析
 
 categories:
