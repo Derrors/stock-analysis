@@ -14,6 +14,7 @@ Does NOT trigger:
 
 Output: 结构化分析报告（评分0-100、操作方向、买卖点位、风险提示、检查清单）
 version: 1.1.0
+license: MIT-0
 metadata:
   openclaw:
     requires:
