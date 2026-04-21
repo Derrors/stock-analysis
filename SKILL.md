@@ -163,6 +163,12 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 
 ## 数据源
 
+### 推荐配置：妙想金融
+
+配置 `MX_APIKEY` 后，妙想金融自动成为行情数据、财务/资金/估值、资讯搜索的**最高优先级数据源**，覆盖能力最全、数据质量最高。推荐优先配置。
+
+👉 前往 [妙想 Skills 页面](https://dl.dfcfs.com/m/itc4) 获取 API Key
+
 ### 行情数据
 
 四级自动容灾，并行竞争 + 超时控制：
@@ -209,7 +215,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 | LLM_API_KEY    | 是  | LLM API Key                                      |
 | LLM_BASE_URL   | 是  | OpenAI 兼容 API 地址                                 |
 | LLM_MODEL      | 是  | 模型名称                                             |
-| MX_APIKEY      | 否  | 妙想金融 API Key（配置后自动成为行情数据 + 财务/资金/估值 + 资讯搜索第一优先级） |
+| MX_APIKEY      | 否  | 妙想金融 API Key（[前往获取](https://dl.dfcfs.com/m/itc4)），配置后自动成为行情数据 + 财务/资金/估值 + 资讯搜索第一优先级 |
 | SERPAPI_KEY    | 否  | SerpAPI 搜索 Key                                   |
 | TAVILY_KEY     | 否  | Tavily 搜索 Key                                    |
 | BRAVE_KEY      | 否  | Brave 搜索 Key                                     |

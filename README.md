@@ -8,11 +8,11 @@
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
 [![OpenClaw Skill](https://img.shields.io/badge/OpenClaw-Skill-green.svg)](https://github.com/openclaw)
 
-基于 [daily_stock_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) 项目精简重写，去除 WebUI、通知推送、Agent 问股等非核心功能，聚焦分析能力本身。
+基于 [daily\_stock\_analysis](https://github.com/ZhuLinsen/daily_stock_analysis) 项目精简重写，去除 WebUI、通知推送、Agent 问股等非核心功能，聚焦分析能力本身。
 
 </div>
 
----
+***
 
 ## ✨ 功能特性
 
@@ -37,27 +37,50 @@
 
 ### 🔄 多源数据架构
 
-行情数据采用四级自动容灾策略：
+#### 推荐配置：妙想金融
 
-| 优先级 | 数据源 | 说明 | 需要 Token |
-| :---: | --- | --- | :---: |
-| 0 | **妙想金融** | 东财妙想 API，覆盖行情 + 财务数据 | ✅ `MX_APIKEY` |
-| 1 | **Efinance** | 基于东财接口，覆盖日 K、实时行情、板块排名、市场统计 | ❌ |
-| 2 | **AkShare** | 东财 + 新浪双通道，额外支持筹码分布 | ❌ |
-| 3 | **Pytdx** | 直连通达信行情服务器，支持日 K、实时行情、指数数据 | ❌ |
+配置 `MX_APIKEY` 后，妙想金融自动成为行情数据、财务/资金/估值、资讯搜索的**最高优先级数据源**，覆盖能力最全、数据质量最高。推荐优先配置。
+
+👉 前往 [妙想 Skills 页面](https://dl.dfcfs.com/m/itc4) 获取 API Key
+
+#### 行情数据采用自动容灾策略：
+
+| 优先级 | 数据源          | 说明                          |    需要 Token   |
+| :-: | ------------ | --------------------------- | :-----------: |
+|  0  | **妙想金融**     | 东财妙想 API，覆盖行情 + 财务数据        | ✅ `MX_APIKEY` |
+|  1  | **Efinance** | 基于东财接口，覆盖日 K、实时行情、板块排名、市场统计 |       ❌       |
+|  2  | **AkShare**  | 东财 + 新浪双通道，额外支持筹码分布         |       ❌       |
+|  3  | **Pytdx**    | 直连通达信行情服务器，支持日 K、实时行情、指数数据  |       ❌       |
 
 > - 配置 `MX_APIKEY` 后妙想自动成为最高优先级；未配置时从 Efinance 开始
 > - 任意数据源异常时自动切换到下一级，无需人工干预
 
 ## 🚀 快速开始
 
-### 1. 安装依赖
+### 方式一：通过 ClawHub 安装（推荐）
+
+使用 OpenClaw CLI 一键安装：
+
+```bash
+openclaw skill install stock-analysis-report
+```
+
+安装后即可在 OpenClaw 中直接使用：
+
+```
+分析贵州茅台
+市场分析
+```
+
+### 方式二：本地开发
+
+#### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 配置环境变量
+#### 2. 配置环境变量
 
 ```bash
 cp .env.example .env
@@ -83,7 +106,7 @@ BOCHA_KEY=
 
 > 💡 行情数据源（Efinance / AkShare / Pytdx）均为免费接口，无需配置任何 Token。
 
-### 3. 调用分析
+#### 3. 调用分析
 
 #### 生成 Markdown 报告（推荐）
 
@@ -236,28 +259,28 @@ stock-analysis/
 
 ### 数据源能力矩阵
 
-| 能力 | 妙想金融 | Efinance | AkShare | Pytdx |
-| --- | :---: | :---: | :---: | :---: |
-| 股票基本信息 | ✅ | ✅ | ✅ | ✅ |
-| 日 K 线数据 | ✅ | ✅ | ✅ | ✅ |
-| 实时行情 | ✅ | ✅ | ✅ | ✅ |
-| 筹码分布 | ❌ | ❌ | ✅ | ❌ |
-| 板块排名 | ❌ | ✅ | ✅ | ❌ |
-| 市场统计 | ❌ | ✅ | ✅ | ❌ |
-| 指数数据 | ✅ | ✅ | ✅ | ✅ |
-| 财务数据 | ✅ | ❌ | ❌ | ❌ |
-| 主力资金 | ✅ | ❌ | ❌ | ❌ |
-| 估值数据 | ✅ | ❌ | ❌ | ❌ |
+| 能力      | 妙想金融 | Efinance | AkShare | Pytdx |
+| ------- | :--: | :------: | :-----: | :---: |
+| 股票基本信息  |   ✅  |     ✅    |    ✅    |   ✅   |
+| 日 K 线数据 |   ✅  |     ✅    |    ✅    |   ✅   |
+| 实时行情    |   ✅  |     ✅    |    ✅    |   ✅   |
+| 筹码分布    |   ❌  |     ❌    |    ✅    |   ❌   |
+| 板块排名    |   ❌  |     ✅    |    ✅    |   ❌   |
+| 市场统计    |   ❌  |     ✅    |    ✅    |   ❌   |
+| 指数数据    |   ✅  |     ✅    |    ✅    |   ✅   |
+| 财务数据    |   ✅  |     ❌    |    ❌    |   ❌   |
+| 主力资金    |   ✅  |     ❌    |    ❌    |   ❌   |
+| 估值数据    |   ✅  |     ❌    |    ❌    |   ❌   |
 
 ### 资讯搜索架构
 
-| 优先级 | 搜索引擎 | 数据源 | 需要 Key | 返回内容 |
-| :---: | --- | --- | :---: | --- |
-| 0 | **妙想搜索** | 东财妙想资讯 API | ✅ `MX_APIKEY` | 完整正文 + 新闻/研报/公告 |
-| 1 | SerpAPI | Google 搜索 | ✅ | snippet |
-| 2 | Tavily | Tavily AI 搜索 | ✅ | snippet |
-| 3 | Brave | Brave 搜索 | ✅ | snippet |
-| 4 | Bocha | 博查搜索 | ✅ | snippet |
+| 优先级 | 搜索引擎     | 数据源          |     需要 Key    | 返回内容            |
+| :-: | -------- | ------------ | :-----------: | --------------- |
+|  0  | **妙想搜索** | 东财妙想资讯 API   | ✅ `MX_APIKEY` | 完整正文 + 新闻/研报/公告 |
+|  1  | SerpAPI  | Google 搜索    |       ✅       | snippet         |
+|  2  | Tavily   | Tavily AI 搜索 |       ✅       | snippet         |
+|  3  | Brave    | Brave 搜索     |       ✅       | snippet         |
+|  4  | Bocha    | 博查搜索         |       ✅       | snippet         |
 
 > - 配置 `MX_APIKEY` 后妙想搜索自动成为最高优先级，返回新闻 + 研报 + 公告三种类型
 > - 妙想搜索返回完整正文，由 LLM 自动提取核心摘要；其他引擎仅返回 snippet
@@ -268,67 +291,67 @@ stock-analysis/
 参照原项目实现，内置多项反封禁措施：
 
 - 随机 User-Agent 轮换（5 组 UA）
-- 请求间随机 Sleep（1.5 ~ 3.0 秒抖动）
+- 请求间随机 Sleep（1.5 \~ 3.0 秒抖动）
 - 全市场实时行情缓存（TTL 600 秒）
 - 涨停 / 跌停精确计算（科创板 / 创业板 20%、北交所 30%、ST 5%、普通 10%）
 
 ## ⚙️ 配置说明
 
-| 环境变量 | 必填 | 默认值 | 说明 |
-| --- | :---: | --- | --- |
-| `LLM_BASE_URL` | ✅ | `https://api.deepseek.com/v1` | OpenAI 兼容 API 地址 |
-| `LLM_API_KEY` | ✅ | — | API Key |
-| `LLM_MODEL` | ✅ | `deepseek-chat` | 模型名称 |
-| `SERPAPI_KEY` | ❌ | — | SerpAPI Key |
-| `TAVILY_KEY` | ❌ | — | Tavily Key |
-| `BRAVE_KEY` | ❌ | — | Brave Search Key |
-| `BOCHA_KEY` | ❌ | — | 博查搜索 Key |
-| `MX_APIKEY` | ❌ | — | 妙想金融数据 API Key（配置后自动成为第一优先级数据源） |
-| `BIAS_THRESHOLD` | ❌ | `5.0` | 乖离率阈值（%） |
-| `NEWS_MAX_AGE_DAYS` | ❌ | `3` | 新闻最大时效（天） |
-| `ENABLE_CHIP` | ❌ | `true` | 是否启用筹码分布 |
-| `LOG_LEVEL` | ❌ | `INFO` | 日志级别：DEBUG/INFO/WARNING/ERROR |
+| 环境变量                |  必填 | 默认值                           | 说明                                                                  |
+| ------------------- | :-: | ----------------------------- | ------------------------------------------------------------------- |
+| `LLM_BASE_URL`      |  ✅  | `https://api.deepseek.com/v1` | OpenAI 兼容 API 地址                                                    |
+| `LLM_API_KEY`       |  ✅  | —                             | API Key                                                             |
+| `LLM_MODEL`         |  ✅  | `deepseek-chat`               | 模型名称                                                                |
+| `SERPAPI_KEY`       |  ❌  | —                             | SerpAPI Key                                                         |
+| `TAVILY_KEY`        |  ❌  | —                             | Tavily Key                                                          |
+| `BRAVE_KEY`         |  ❌  | —                             | Brave Search Key                                                    |
+| `BOCHA_KEY`         |  ❌  | —                             | 博查搜索 Key                                                            |
+| `MX_APIKEY`         |  ❌  | —                             | 妙想金融数据 API Key（[前往获取](https://dl.dfcfs.com/m/itc4)），配置后自动成为第一优先级数据源 |
+| `BIAS_THRESHOLD`    |  ❌  | `5.0`                         | 乖离率阈值（%）                                                            |
+| `NEWS_MAX_AGE_DAYS` |  ❌  | `3`                           | 新闻最大时效（天）                                                           |
+| `ENABLE_CHIP`       |  ❌  | `true`                        | 是否启用筹码分布                                                            |
+| `LOG_LEVEL`         |  ❌  | `INFO`                        | 日志级别：DEBUG/INFO/WARNING/ERROR                                       |
 
 ## 📋 分析结果结构
 
 <details>
 <summary>个股分析 — StockAnalysisResult</summary>
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `stock_code` | str | 股票代码 |
-| `stock_name` | str | 股票名称 |
-| `core_conclusion` | str | 一句话核心结论 |
-| `score` | int | 评分 0-100 |
-| `action` | str | 操作方向：买入/观望/卖出 |
-| `trend` | str | 趋势判断：看多/震荡/看空 |
-| `buy_price` | float | 建议买入价 |
-| `stop_loss_price` | float | 止损价 |
-| `target_price` | float | 目标价 |
-| `checklist` | list[CheckItem] | 操作检查清单 |
-| `risk_alerts` | list[str] | 风险警报 |
-| `positive_catalysts` | list[str] | 利好催化 |
-| `strategy` | str | 买卖策略建议 |
-| `raw_report` | str | LLM 完整分析报告（Markdown） |
-| `disclaimer` | str | 免责声明 |
+| 字段                   | 类型               | 说明                   |
+| -------------------- | ---------------- | -------------------- |
+| `stock_code`         | str              | 股票代码                 |
+| `stock_name`         | str              | 股票名称                 |
+| `core_conclusion`    | str              | 一句话核心结论              |
+| `score`              | int              | 评分 0-100             |
+| `action`             | str              | 操作方向：买入/观望/卖出        |
+| `trend`              | str              | 趋势判断：看多/震荡/看空        |
+| `buy_price`          | float            | 建议买入价                |
+| `stop_loss_price`    | float            | 止损价                  |
+| `target_price`       | float            | 目标价                  |
+| `checklist`          | list\[CheckItem] | 操作检查清单               |
+| `risk_alerts`        | list\[str]       | 风险警报                 |
+| `positive_catalysts` | list\[str]       | 利好催化                 |
+| `strategy`           | str              | 买卖策略建议               |
+| `raw_report`         | str              | LLM 完整分析报告（Markdown） |
+| `disclaimer`         | str              | 免责声明                 |
 
 </details>
 
 <details>
 <summary>市场分析 — MarketAnalysisResult</summary>
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `date` | str | 分析日期 |
-| `core_conclusion` | str | 一句话核心结论 |
-| `indices` | list[IndexData] | 主要指数数据 |
-| `statistics` | MarketStatistics | 涨跌统计 |
-| `top_sectors` | list[SectorData] | 领涨板块 |
-| `bottom_sectors` | list[SectorData] | 领跌板块 |
-| `sentiment` | str | 市场情绪：偏多/中性/偏空 |
-| `strategy` | str | 操作建议 |
-| `raw_report` | str | LLM 完整复盘报告（Markdown） |
-| `disclaimer` | str | 免责声明 |
+| 字段                | 类型                | 说明                   |
+| ----------------- | ----------------- | -------------------- |
+| `date`            | str               | 分析日期                 |
+| `core_conclusion` | str               | 一句话核心结论              |
+| `indices`         | list\[IndexData]  | 主要指数数据               |
+| `statistics`      | MarketStatistics  | 涨跌统计                 |
+| `top_sectors`     | list\[SectorData] | 领涨板块                 |
+| `bottom_sectors`  | list\[SectorData] | 领跌板块                 |
+| `sentiment`       | str               | 市场情绪：偏多/中性/偏空        |
+| `strategy`        | str               | 操作建议                 |
+| `raw_report`      | str               | LLM 完整复盘报告（Markdown） |
+| `disclaimer`      | str               | 免责声明                 |
 
 </details>
 
