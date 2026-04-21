@@ -28,7 +28,7 @@ class LLMClient:
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=temperature,
-                max_tokens=4096,
+                max_tokens=8192,
             )
             content = response.choices[0].message.content
             if content is None:
