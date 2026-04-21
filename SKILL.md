@@ -171,14 +171,13 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 
 ### 行情数据
 
-四级自动容灾，并行竞争 + 超时控制：
+三级自动容灾，并行竞争 + 超时控制：
 
 | 优先级 | 数据源          | 覆盖能力              | 需要 Key        |
 | --- | ------------ | ----------------- | ------------- |
 | 0   | **妙想金融**     | 行情 + 财务 + 资金 + 估值 | ✅ `MX_APIKEY` |
 | 1   | **Efinance** | 行情 + 板块 + 市场统计    | ❌             |
 | 2   | **AkShare**  | 行情 + 筹码 + 板块      | ❌             |
-| 3   | **Pytdx**    | 行情 + 指数（兜底）       | ❌             |
 
 - 配置 `MX_APIKEY` 后妙想自动成为最高优先级；未配置时从 Efinance 开始
 - 所有数据源**并行请求**，按优先级取第一个有效结果；日K线取行数最多的结果
@@ -223,6 +222,6 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 
 ## 注意事项
 
-- Efinance / AkShare / Pytdx 为免费接口，无需注册；妙想金融需配置 `MX_APIKEY`
+- Efinance / AkShare 为免费接口，无需注册；妙想金融需配置 `MX_APIKEY`
 - 分析结果仅供参考，不构成投资建议
 

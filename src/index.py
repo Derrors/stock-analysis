@@ -12,7 +12,6 @@ from src.data.akshare_provider import AkShareProvider
 from src.data.efinance_provider import EfinanceProvider
 from src.data.manager import DataProviderManager
 from src.data.miaoxiang_provider import MiaoxiangProvider
-from src.data.pytdx_provider import PytdxProvider
 from src.llm.client import LLMClient
 from src.models import MarketAnalysisResult, StockAnalysisResult
 from src.report import save_report
@@ -43,7 +42,7 @@ def _build_data_provider(config: SkillConfig) -> DataProviderManager:
     providers = []
     if config.mx_apikey:
         providers.append(MiaoxiangProvider(config.mx_apikey))
-    providers.extend([EfinanceProvider(), AkShareProvider(), PytdxProvider()])
+    providers.extend([EfinanceProvider(), AkShareProvider()])
     return DataProviderManager(providers)
 
 
