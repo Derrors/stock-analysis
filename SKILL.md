@@ -22,6 +22,10 @@ metadata:
         - LLM_API_KEY
         - LLM_BASE_URL
         - LLM_MODEL
+      bins:
+        - python3
+    optional:
+      env:
         - MX_APIKEY
         - SERPAPI_KEY
         - TAVILY_KEY
@@ -31,8 +35,6 @@ metadata:
         - NEWS_MAX_AGE_DAYS
         - ENABLE_CHIP
         - LOG_LEVEL
-      bins:
-        - python3
     primaryEnv: LLM_API_KEY
     emoji: "📈"
     install:
