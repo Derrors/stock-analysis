@@ -1,5 +1,5 @@
 name: stock-analysis
-version: 1.1.0
+version: 1.0.5
 author: Derrors
 license: MIT-0
 runtime: python
@@ -9,6 +9,30 @@ description: A股市场分析与个股深度分析技能，支持基本面（财
 categories:
   - finance
   - analysis
+
+requires:
+  env:
+    - LLM_API_KEY
+    - LLM_BASE_URL
+    - LLM_MODEL
+  bins:
+    - python3
+
+optional:
+  env:
+    - MX_APIKEY
+    - SERPAPI_KEY
+    - TAVILY_KEY
+    - BRAVE_KEY
+    - BOCHA_KEY
+    - BIAS_THRESHOLD
+    - NEWS_MAX_AGE_DAYS
+    - ENABLE_CHIP
+    - LOG_LEVEL
+
+install:
+  - kind: uv
+    command: pip install -r requirements.txt
 
 config:
   - key: llm_base_url
