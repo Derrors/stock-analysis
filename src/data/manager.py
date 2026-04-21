@@ -34,11 +34,11 @@ class DataProviderManager(MarketDataProvider):
         provider_names = [p.__class__.__name__ for p in providers]
         logger.info("DataProviderManager 初始化: %s", " → ".join(provider_names))
 
-    async def _race_providers(self, method_name: str, code: str, *args, **kwargs):
+    async def _race_providers(self, method_name: str, *args, **kwargs):
         tasks = []
         for provider in self.providers:
             method = getattr(provider, method_name)
-            tasks.append(asyncio.wait_for(method(code, *args, **kwargs), timeout=_PROVIDER_TIMEOUT))
+            tasks.append(asyncio.wait_for(method(*args, **kwargs), timeout=_PROVIDER_TIMEOUT))
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -157,21 +157,21 @@ class DataProviderManager(MarketDataProvider):
         return overview
 
     async def get_indices(self) -> list[IndexData]:
-        result = await self._race_providers("get_indices", "")
+        result = await self._race_providers("get_indices")
         if result and isinstance(result, list):
             return result
         logger.warning("get_indices() 所有数据源均失败")
         return []
 
     async def get_sector_rankings(self) -> tuple[list[SectorData], list[SectorData]]:
-        result = await self._race_providers("get_sector_rankings", "")
+        result = await self._race_providers("get_sector_rankings")
         if result and isinstance(result, tuple):
             return result
         logger.warning("get_sector_rankings() 所有数据源均失败")
         return [], []
 
     async def get_market_statistics(self) -> MarketStatistics:
-        result = await self._race_providers("get_market_statistics", "")
+        result = await self._race_providers("get_market_statistics")
         if result and isinstance(result, MarketStatistics) and (result.up_count > 0 or result.down_count > 0):
             return result
         logger.warning("get_market_statistics() 所有数据源均失败")
