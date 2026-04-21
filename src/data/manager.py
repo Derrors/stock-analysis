@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Optional
@@ -23,6 +24,8 @@ from src.models import (
 
 logger = logging.getLogger(__name__)
 
+_PROVIDER_TIMEOUT = 10.0
+
 
 class DataProviderManager(MarketDataProvider):
 
@@ -31,49 +34,67 @@ class DataProviderManager(MarketDataProvider):
         provider_names = [p.__class__.__name__ for p in providers]
         logger.info("DataProviderManager 初始化: %s", " → ".join(provider_names))
 
+    async def _race_providers(self, method_name: str, code: str, *args, **kwargs):
+        tasks = []
+        for provider in self.providers:
+            method = getattr(provider, method_name)
+            tasks.append(asyncio.wait_for(method(code, *args, **kwargs), timeout=_PROVIDER_TIMEOUT))
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for i, result in enumerate(results):
+            provider_name = self.providers[i].__class__.__name__
+            if isinstance(result, (asyncio.TimeoutError, asyncio.CancelledError)):
+                logger.warning("[数据源] %s %s 超时(%.0fs)", provider_name, method_name, _PROVIDER_TIMEOUT)
+                continue
+            if isinstance(result, Exception):
+                logger.warning("[数据源] %s %s 失败: %s", provider_name, method_name, result)
+                continue
+            logger.info("[数据源] %s %s 成功", provider_name, method_name)
+            return result
+
+        return None
+
     async def get_stock_info(self, code: str) -> StockInfo:
         code = self.normalize_code(code)
         start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_stock_info(code)
-                if result and result.name and result.name != code:
-                    logger.info("[数据源 %d/%d] %s 获取股票信息成功: %s", i + 1, len(self.providers), provider.__class__.__name__, result.name)
-                    logger.debug("get_stock_info(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-                logger.warning("[数据源 %d/%d] %s 返回无效结果", i + 1, len(self.providers), provider.__class__.__name__)
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_stock_info 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_stock_info", code)
+        if result and isinstance(result, StockInfo) and result.name and result.name != code:
+            logger.debug("get_stock_info(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+            return result
         logger.warning("get_stock_info(%s) 所有数据源均失败", code)
         return StockInfo(code=code, name=code)
 
     async def get_daily_data(self, code: str, days: int = 120) -> pd.DataFrame:
         code = self.normalize_code(code)
         start = time.monotonic()
+        tasks = [
+            asyncio.wait_for(provider.get_daily_data(code, days), timeout=_PROVIDER_TIMEOUT)
+            for provider in self.providers
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
         best_df = pd.DataFrame()
         best_len = 0
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_daily_data(code, days)
-                if result is not None and not result.empty:
-                    result_len = len(result)
-                    logger.info("[数据源 %d/%d] %s 获取日K线: %d 条 (请求%d天)",
-                                i + 1, len(self.providers), provider.__class__.__name__,
-                                result_len, days)
-                    if result_len > best_len:
-                        best_df = result
-                        best_len = result_len
-                    if result_len >= days * 0.8:
-                        logger.debug("get_daily_data(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                        return best_df
-                else:
-                    logger.warning("[数据源 %d/%d] %s 日K线数据为空", i + 1, len(self.providers), provider.__class__.__name__)
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_daily_data 失败: %s", provider.__class__.__name__, e)
+        for i, result in enumerate(results):
+            provider_name = self.providers[i].__class__.__name__
+            if isinstance(result, Exception):
+                logger.warning("[数据源] %s get_daily_data 失败: %s", provider_name, result)
                 continue
+            if result is not None and not result.empty:
+                result_len = len(result)
+                logger.info("[数据源 %d/%d] %s 获取日K线: %d 条 (请求%d天)",
+                            i + 1, len(self.providers), provider_name, result_len, days)
+                if result_len > best_len:
+                    best_df = result
+                    best_len = result_len
+            else:
+                logger.warning("[数据源 %d/%d] %s 日K线数据为空",
+                               i + 1, len(self.providers), provider_name)
+
         if not best_df.empty:
-            logger.debug("get_daily_data(%s) 完成 耗时%.2fs (最佳:%d条)", code, time.monotonic() - start, best_len)
+            logger.debug("get_daily_data(%s) 完成 耗时%.2fs (最佳:%d条)",
+                         code, time.monotonic() - start, best_len)
         else:
             logger.warning("get_daily_data(%s) 所有数据源均失败", code)
         return best_df
@@ -81,33 +102,20 @@ class DataProviderManager(MarketDataProvider):
     async def get_realtime_quote(self, code: str) -> RealtimeQuote:
         code = self.normalize_code(code)
         start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_realtime_quote(code)
-                if result and result.price > 0:
-                    logger.info("[数据源 %d/%d] %s 获取实时行情成功: %.2f", i + 1, len(self.providers), provider.__class__.__name__, result.price)
-                    logger.debug("get_realtime_quote(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-                logger.warning("[数据源 %d/%d] %s 实时行情无效", i + 1, len(self.providers), provider.__class__.__name__)
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_realtime_quote 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_realtime_quote", code)
+        if result and isinstance(result, RealtimeQuote) and result.price > 0:
+            logger.debug("get_realtime_quote(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+            return result
         logger.warning("get_realtime_quote(%s) 所有数据源均失败", code)
         return RealtimeQuote()
 
     async def get_chip_distribution(self, code: str) -> Optional[ChipDistribution]:
         code = self.normalize_code(code)
         start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_chip_distribution(code)
-                if result is not None:
-                    logger.info("[数据源 %d/%d] %s 获取筹码分布成功", i + 1, len(self.providers), provider.__class__.__name__)
-                    logger.debug("get_chip_distribution(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_chip_distribution 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_chip_distribution", code)
+        if result is not None:
+            logger.debug("get_chip_distribution(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
+            return result
 
         logger.info("[筹码兜底] 所有数据源筹码接口未返回，尝试K线估算")
         try:
@@ -128,9 +136,12 @@ class DataProviderManager(MarketDataProvider):
         start = time.monotonic()
         logger.info("开始获取市场概览...")
 
-        indices = await self.get_indices()
-        statistics = await self.get_market_statistics()
-        top_sectors, bottom_sectors = await self.get_sector_rankings()
+        indices, statistics, sectors = await asyncio.gather(
+            self.get_indices(),
+            self.get_market_statistics(),
+            self.get_sector_rankings(),
+        )
+        top_sectors, bottom_sectors = sectors if isinstance(sectors, tuple) else ([], [])
 
         overview = MarketOverview(
             indices=indices,
@@ -146,105 +157,46 @@ class DataProviderManager(MarketDataProvider):
         return overview
 
     async def get_indices(self) -> list[IndexData]:
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_indices()
-                if result:
-                    logger.info("[数据源 %d/%d] %s 获取指数数据成功: %d个",
-                                i + 1, len(self.providers), provider.__class__.__name__, len(result))
-                    logger.debug("get_indices() 完成 耗时%.2fs", time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_indices 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_indices", "")
+        if result and isinstance(result, list):
+            return result
         logger.warning("get_indices() 所有数据源均失败")
         return []
 
     async def get_sector_rankings(self) -> tuple[list[SectorData], list[SectorData]]:
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                top, bottom = await provider.get_sector_rankings()
-                if top or bottom:
-                    logger.info("[数据源 %d/%d] %s 获取板块排名成功: 领涨%d 领跌%d",
-                                i + 1, len(self.providers), provider.__class__.__name__, len(top), len(bottom))
-                    logger.debug("get_sector_rankings() 完成 耗时%.2fs", time.monotonic() - start)
-                    return top, bottom
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_sector_rankings 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_sector_rankings", "")
+        if result and isinstance(result, tuple):
+            return result
         logger.warning("get_sector_rankings() 所有数据源均失败")
         return [], []
 
     async def get_market_statistics(self) -> MarketStatistics:
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_market_statistics()
-                if result and (result.up_count > 0 or result.down_count > 0):
-                    logger.info("[数据源 %d/%d] %s 获取市场统计成功: 涨%d 跌%d 涨停%d 跌停%d",
-                                i + 1, len(self.providers), provider.__class__.__name__,
-                                result.up_count, result.down_count,
-                                result.limit_up_count, result.limit_down_count)
-                    logger.debug("get_market_statistics() 完成 耗时%.2fs", time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_market_statistics 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_market_statistics", "")
+        if result and isinstance(result, MarketStatistics) and (result.up_count > 0 or result.down_count > 0):
+            return result
         logger.warning("get_market_statistics() 所有数据源均失败")
         return MarketStatistics()
 
     async def get_capital_flow(self, code: str) -> Optional[CapitalFlow]:
         code = self.normalize_code(code)
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_capital_flow(code)
-                if result is not None:
-                    logger.info("[数据源 %d/%d] %s 获取主力资金成功: 超大单净额=%.0f",
-                                i + 1, len(self.providers), provider.__class__.__name__,
-                                result.super_large_net)
-                    logger.debug("get_capital_flow(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_capital_flow 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_capital_flow", code)
+        if result is not None:
+            return result
         logger.debug("get_capital_flow(%s) 所有数据源均不支持或失败", code)
         return None
 
     async def get_valuation(self, code: str) -> Optional[Valuation]:
         code = self.normalize_code(code)
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_valuation(code)
-                if result is not None:
-                    logger.info("[数据源 %d/%d] %s 获取估值数据成功: PE=%.1f, PB=%.1f",
-                                i + 1, len(self.providers), provider.__class__.__name__,
-                                result.pe_ttm, result.pb)
-                    logger.debug("get_valuation(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_valuation 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_valuation", code)
+        if result is not None:
+            return result
         logger.debug("get_valuation(%s) 所有数据源均不支持或失败", code)
         return None
 
     async def get_financial_data(self, code: str) -> Optional[FinancialData]:
         code = self.normalize_code(code)
-        start = time.monotonic()
-        for i, provider in enumerate(self.providers):
-            try:
-                result = await provider.get_financial_data(code)
-                if result is not None:
-                    logger.info("[数据源 %d/%d] %s 获取财务数据成功: ROE=%.1f%%, 毛利率=%.1f%%",
-                                i + 1, len(self.providers), provider.__class__.__name__,
-                                result.roe, result.gross_margin)
-                    logger.debug("get_financial_data(%s) 完成 耗时%.2fs", code, time.monotonic() - start)
-                    return result
-            except Exception as e:
-                logger.warning("[数据源切换] %s get_financial_data 失败: %s", provider.__class__.__name__, e)
-                continue
+        result = await self._race_providers("get_financial_data", code)
+        if result is not None:
+            return result
         logger.debug("get_financial_data(%s) 所有数据源均不支持或失败", code)
         return None

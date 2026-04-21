@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Optional
@@ -93,25 +94,53 @@ class StockAnalyzer:
         stock_info = await self.data_provider.get_stock_info(code)
         logger.debug("[个股分析] 股票信息: %s(%s) 行业=%s", stock_info.name, stock_info.code, stock_info.industry)
 
-        daily_data = await self.data_provider.get_daily_data(code, 120)
-        logger.debug("[个股分析] 日K线数据: %d条", len(daily_data) if daily_data is not None else 0)
+        logger.info("[个股分析] 并行采集数据...")
+        gather_start = asyncio.get_event_loop().time()
 
-        realtime = await self.data_provider.get_realtime_quote(code)
-        logger.debug("[个股分析] 实时行情: price=%.2f, change_pct=%.2f%%", realtime.price, realtime.change_pct)
+        daily_data, realtime, chip, capital_flow, valuation, financial, news = await asyncio.gather(
+            self.data_provider.get_daily_data(code, 120),
+            self.data_provider.get_realtime_quote(code),
+            self._get_chip(code),
+            self._get_capital_flow(code),
+            self._get_valuation(code),
+            self._get_financial_data(code),
+            self._search_news(stock_info.name, stock_info.code),
+            return_exceptions=True,
+        )
 
-        chip = await self._get_chip(code)
-        logger.debug("[个股分析] 筹码分布: %s", "有数据" if chip else "无数据")
+        gather_elapsed = asyncio.get_event_loop().time() - gather_start
+        logger.info("[个股分析] 并行采集完成 耗时%.2fs", gather_elapsed)
 
-        capital_flow = await self._get_capital_flow(code)
-        logger.debug("[个股分析] 主力资金: %s", "有数据" if capital_flow else "无数据")
+        if isinstance(daily_data, Exception):
+            logger.warning("[个股分析] 日K线采集异常: %s", daily_data)
+            daily_data = pd.DataFrame()
+        if isinstance(realtime, Exception):
+            logger.warning("[个股分析] 实时行情采集异常: %s", realtime)
+            realtime = RealtimeQuote()
+        if isinstance(chip, Exception):
+            logger.warning("[个股分析] 筹码分布采集异常: %s", chip)
+            chip = None
+        if isinstance(capital_flow, Exception):
+            logger.warning("[个股分析] 主力资金采集异常: %s", capital_flow)
+            capital_flow = None
+        if isinstance(valuation, Exception):
+            logger.warning("[个股分析] 估值数据采集异常: %s", valuation)
+            valuation = None
+        if isinstance(financial, Exception):
+            logger.warning("[个股分析] 财务数据采集异常: %s", financial)
+            financial = None
+        if isinstance(news, Exception):
+            logger.warning("[个股分析] 新闻搜索异常: %s", news)
+            news = []
 
-        valuation = await self._get_valuation(code)
-        logger.debug("[个股分析] 估值数据: %s", "有数据" if valuation else "无数据")
+        logger.debug("[个股分析] 日K线: %d条", len(daily_data) if daily_data is not None else 0)
+        logger.debug("[个股分析] 实时行情: price=%.2f", realtime.price if isinstance(realtime, RealtimeQuote) else 0)
+        logger.debug("[个股分析] 筹码: %s", "有" if chip else "无")
+        logger.debug("[个股分析] 主力资金: %s", "有" if capital_flow else "无")
+        logger.debug("[个股分析] 估值: %s", "有" if valuation else "无")
+        logger.debug("[个股分析] 财务: %s", "有" if financial else "无")
+        logger.debug("[个股分析] 新闻: %d条", len(news) if isinstance(news, list) else 0)
 
-        financial = await self._get_financial_data(code)
-        logger.debug("[个股分析] 财务数据: %s", "有数据" if financial else "无数据")
-
-        news = await self._search_news(stock_info.name, stock_info.code)
         news = await self._summarize_news(news, stock_info.name)
         logger.debug("[个股分析] 新闻舆情: %d条", len(news))
 
