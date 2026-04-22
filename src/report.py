@@ -261,52 +261,18 @@ def generate_stock_report(result: StockAnalysisResult) -> str:
             lines.append("")
 
     if result.news:
-        news_items = [n for n in result.news if n.info_type in ("", "news")]
-        report_items = [n for n in result.news if n.info_type == "report"]
-        announcement_items = [n for n in result.news if n.info_type == "announcement"]
-        has_types = report_items or announcement_items
-
-        if has_types:
-            total = len(result.news)
-            lines.append(f"## 📰 近期资讯（{total}条）")
-            lines.append("")
-            if news_items:
-                lines.append(f"**新闻**（{len(news_items)}条）：")
-                lines.append("")
-                for item in news_items[:6]:
-                    date_str = f"[{item.date}] " if item.date else ""
-                    source_str = f" — {item.source}" if item.source else ""
-                    lines.append(f"- {date_str}**{item.title}**{source_str}")
-                    if item.snippet:
-                        lines.append(f"  > {item.snippet[:300]}")
-                lines.append("")
-            if report_items:
-                lines.append(f"**📊 研报观点**（{len(report_items)}条）：")
-                lines.append("")
-                for item in report_items[:4]:
-                    date_str = f"[{item.date}] " if item.date else ""
-                    source_str = f" — {item.source}" if item.source else ""
-                    lines.append(f"- {date_str}**{item.title}**{source_str}")
-                    if item.snippet:
-                        lines.append(f"  > {item.snippet[:300]}")
-                lines.append("")
-            if announcement_items:
-                lines.append(f"**📢 公告**（{len(announcement_items)}条）：")
-                lines.append("")
-                for item in announcement_items[:3]:
-                    date_str = f"[{item.date}] " if item.date else ""
-                    lines.append(f"- {date_str}**{item.title}**")
-                lines.append("")
-        else:
-            lines.append(f"## 📰 新闻舆情（{len(result.news)}条）")
-            lines.append("")
-            for item in result.news[:8]:
-                date_str = f"[{item.date}] " if item.date else ""
-                source_str = f" — {item.source}" if item.source else ""
-                lines.append(f"- {date_str}**{item.title}**{source_str}")
-                if item.snippet:
-                    lines.append(f"  > {item.snippet[:300]}")
-            lines.append("")
+        total = len(result.news)
+        lines.append(f"## 📰 近期资讯（{total}条）")
+        lines.append("")
+        for item in result.news:
+            date_str = f"[{item.date}] " if item.date else ""
+            type_tag = {"report": "[研报]", "announcement": "[公告]"}.get(item.info_type, "")
+            source_str = f" — {item.source}" if item.source else ""
+            lines.append(f"- {date_str}**{type_tag}{item.title}**{source_str}")
+            text = item.snippet or item.content
+            if text:
+                lines.append(f"  > {text[:300]}")
+        lines.append("")
 
     if result.raw_report:
         lines.append("## 📝 深度分析")

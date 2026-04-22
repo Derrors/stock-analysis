@@ -141,8 +141,8 @@ class StockAnalyzer:
         logger.debug("[个股分析] 财务: %s", "有" if financial else "无")
         logger.debug("[个股分析] 新闻: %d条", len(news) if isinstance(news, list) else 0)
 
-        news = await self._summarize_news(news, stock_info.name)
-        logger.debug("[个股分析] 新闻舆情: %d条", len(news))
+        if isinstance(news, list):
+            news = news[:5]
 
         tech = calculate_technical_indicators(daily_data, self.config.bias_threshold)
         logger.debug("[个股分析] 技术指标: MA5=%.2f MA20=%.2f 多头排列=%s 乖离=%.2f%%",
@@ -159,6 +159,13 @@ class StockAnalyzer:
         try:
             result_dict = await self.llm.analyze_json(system_prompt, user_prompt)
             result = self._parse_result(stock_info, result_dict, news)
+
+            summaries = result_dict.get("news_summaries", [])
+            if isinstance(summaries, list):
+                for i, item in enumerate(news):
+                    if i < len(summaries) and summaries[i]:
+                        item.snippet = str(summaries[i])
+
             result.stock_info = stock_info
             result.realtime = realtime
             result.tech = tech
@@ -240,57 +247,6 @@ class StockAnalyzer:
         logger.debug("[个股分析] 所有搜索引擎均未返回新闻")
         return []
 
-    async def _summarize_news(self, news: list[NewsItem], stock_name: str) -> list[NewsItem]:
-        """Use LLM to extract summaries from full content of news items."""
-        has_full_content = any(n.content and len(n.content) > len(n.snippet) + 50 for n in news)
-        if not has_full_content:
-            logger.debug("[个股分析] 无完整正文，跳过 LLM 摘要提取")
-            return news
-
-        logger.info("[个股分析] 使用 LLM 提取资讯摘要...")
-        prompt_parts = [
-            f"请为以下关于「{stock_name}」的资讯提取摘要，每条用1-2句话概括与该股票投资分析相关的核心信息（业绩、估值、事件影响等），"
-            "忽略广告和无关内容。按原序号输出，格式：序号. 摘要内容\n"
-        ]
-        for i, item in enumerate(news, 1):
-            text = item.content or item.snippet
-            if not text:
-                continue
-            type_tag = {"report": "[研报]", "announcement": "[公告]"}.get(item.info_type, "")
-            source_tag = f"({item.source})" if item.source else ""
-            prompt_parts.append(f"\n{i}. {type_tag}{item.title} {source_tag}\n{text[:1500]}")
-
-        prompt = "\n".join(prompt_parts)
-        try:
-            response = await self.llm.analyze(
-                "你是一位专业的金融资讯摘要提取助手，擅长从新闻和研报中提取与股票投资分析相关的核心信息。",
-                prompt,
-                temperature=0.1,
-            )
-            summaries = self._parse_news_summaries(response, len(news))
-            for i, item in enumerate(news):
-                if i < len(summaries) and summaries[i]:
-                    item.snippet = summaries[i]
-            logger.info("[个股分析] LLM 摘要提取完成: %d/%d 条", sum(1 for s in summaries if s), len(news))
-        except Exception as e:
-            logger.warning("[个股分析] LLM 摘要提取失败: %s，使用原始摘要", e)
-        return news
-
-    @staticmethod
-    def _parse_news_summaries(response: str, count: int) -> list[str]:
-        summaries: list[str] = []
-        lines = response.strip().split("\n")
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-            cleaned = re.sub(r"^\d+[\.\、\)\]\s]+", "", line).strip()
-            if cleaned:
-                summaries.append(cleaned)
-        while len(summaries) < count:
-            summaries.append("")
-        return summaries[:count]
-
     def _build_user_prompt(
         self,
         stock_info: StockInfo,
@@ -304,37 +260,16 @@ class StockAnalyzer:
     ) -> str:
         news_text = "暂无资讯数据"
         if news:
-            news_items = [n for n in news if n.info_type in ("", "news")]
-            report_items = [n for n in news if n.info_type == "report"]
-            announcement_items = [n for n in news if n.info_type == "announcement"]
-
-            sections = []
-            if news_items:
-                lines = []
-                for i, item in enumerate(news_items[:6], 1):
-                    source_tag = f" [{item.source}]" if item.source else ""
-                    lines.append(f"{i}. [{item.date}] {item.title}{source_tag}\n   {item.snippet}")
-                sections.append("### 新闻\n" + "\n".join(lines))
-            if report_items:
-                lines = []
-                for i, item in enumerate(report_items[:4], 1):
-                    source_tag = f" [{item.source}]" if item.source else ""
-                    lines.append(f"{i}. [{item.date}] {item.title}{source_tag}\n   {item.snippet}")
-                sections.append("### 研报观点\n" + "\n".join(lines))
-            if announcement_items:
-                lines = []
-                for i, item in enumerate(announcement_items[:3], 1):
-                    lines.append(f"{i}. [{item.date}] {item.title}\n   {item.snippet}")
-                sections.append("### 公告\n" + "\n".join(lines))
-
-            if not sections:
-                lines = []
-                for i, item in enumerate(news[:8], 1):
-                    source_tag = f" [{item.source}]" if item.source else ""
-                    lines.append(f"{i}. [{item.date}] {item.title}{source_tag}\n   {item.snippet}")
-                sections.append("\n".join(lines))
-
-            news_text = "\n\n".join(sections)
+            limited = news[:5]
+            lines = []
+            for i, item in enumerate(limited, 1):
+                type_tag = {"report": "[研报]", "announcement": "[公告]"}.get(item.info_type, "[新闻]")
+                source_tag = f" [{item.source}]" if item.source else ""
+                text = item.content or item.snippet
+                if text and len(text) > 2000:
+                    text = text[:2000] + "..."
+                lines.append(f"{i}. {type_tag} [{item.date}] {item.title}{source_tag}\n{text}")
+            news_text = "\n\n".join(lines)
 
         chip_info = chip or ChipDistribution()
 

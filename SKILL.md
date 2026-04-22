@@ -56,7 +56,7 @@ metadata:
 - **资金面**：主力资金流向（超大单/大单/中单/小单净额）、DDX/DDY/DDZ 指标
 - **技术面**：MA5/MA10/MA20/MA60 均线、多头排列、乖离率、量比
 - **筹码分布**：获利比例、平均成本、集中度
-- **舆情情报**：妙想金融资讯（新闻/研报/公告，LLM 摘要提取）+ 多引擎新闻搜索
+- **舆情情报**：妙想金融资讯（新闻/研报/公告，LLM 分析）+ 多引擎新闻搜索
 - **实时行情**：当前价、涨跌幅、成交量、换手率
 - **分析结论**：评分 + 操作方向 + 买卖点位 + 检查清单 + 风险提示
 
@@ -139,7 +139,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
   "capital_flow": {"super_large_net": 500000000, "large_net": 200000000, "ddx": 0.26, "ddy": 0.15, "ddz": 5.3},
   "valuation": {"pe_ttm": 28.5, "pb": 8.2, "pe_percentile": 45.0, "pb_percentile": 30.0},
   "financial": {"net_profit": 55000000000, "revenue": 120000000000, "roe": 30.5, "gross_margin": 91.2, "debt_ratio": 25.3, "institution_holding_pct": 65.0},
-  "news": [{"title": "...", "snippet": "LLM提取摘要", "date": "2025-01-15", "source": "中泰证券·研报·买入", "info_type": "report"}],
+  "news": [{"title": "...", "snippet": "资讯摘要", "date": "2025-01-15", "source": "中泰证券·研报·买入", "info_type": "report"}],
   "raw_report": "LLM完整分析报告(Markdown)",
   "disclaimer": "仅供参考，不构成投资建议"
 }
@@ -195,7 +195,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 | 3   | Brave    | snippet                | ✅ `BRAVE_KEY`   |
 | 4   | Bocha    | snippet                | ✅ `BOCHA_KEY`   |
 
-- 妙想搜索返回完整正文，由 LLM 自动提取核心摘要；其他引擎仅返回 snippet
+- 妙想搜索返回完整正文，直传 LLM 进行分析；其他引擎仅返回 snippet
 - 研报类型含机构名称和评级（如"中泰证券·研报·买入"），LLM 可据此参考机构观点
 
 详见 references/data-sources.md。
@@ -205,7 +205,7 @@ result = await handler({"mode": "stock", "code": "600519", "save": True, "output
 - **并行数据采集**：个股分析的 7 个数据维度（日K线、实时行情、筹码、资金、估值、财务、资讯）并行获取，总耗时取决于最慢的单项
 - **并行数据源竞争**：同一数据维度在多个数据源间并行请求，按优先级取第一个有效结果
 - **超时保护**：单数据源请求超时 10 秒自动降级，避免阻塞
-- **LLM 摘要提取**：妙想资讯返回完整正文，由 LLM 批量提取核心摘要，保留关键投资信息
+- **资讯正文直传**：妙想资讯返回完整正文，直传 LLM 在最终分析时一并阅读，保留完整投资信息
 
 ## 环境变量
 
