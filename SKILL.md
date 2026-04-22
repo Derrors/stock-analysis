@@ -13,7 +13,7 @@ Does NOT trigger:
 - 基金/债券/期货分析
 
 Output: 结构化分析报告（评分0-100、操作方向、买卖点位、风险提示、检查清单）
-version: 1.0.6
+version: 1.0.9
 license: MIT-0
 metadata:
   openclaw:
